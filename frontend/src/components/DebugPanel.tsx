@@ -32,18 +32,18 @@ export function DebugPanel({ onMapChange }: Props) {
   const hasMaps = availableMaps.length > 0
 
   return (
-    <section className="rounded-lg border-2 border-purple-400 bg-gradient-to-br from-white to-purple-50 p-4 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Debug Panel</h2>
+    <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
+      <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Debug Panel</h2>
       <div className="space-y-3">
         <div>
-          <label className="block text-base font-medium text-purple-700 mb-2" htmlFor="map-select">
+          <label className="block text-base font-medium text-blue-700 mb-2" htmlFor="map-select">
             Select Map
           </label>
           <select
             id="map-select"
-            className={`w-full rounded-lg border-2 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all ${
+            className={`w-full rounded-lg border-2 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
               hasMaps 
-                ? 'border-purple-300 bg-white text-purple-900 hover:border-purple-400' 
+                ? 'border-blue-300 bg-white text-blue-900 hover:border-blue-400' 
                 : 'border-gray-300 bg-gray-100 text-gray-400'
             }`}
             value={selectedMap}
@@ -68,7 +68,7 @@ export function DebugPanel({ onMapChange }: Props) {
         <button
           onClick={handleChangeMap}
           disabled={!selectedMap || loading || !hasMaps}
-          className="w-full px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+          className="w-full px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
         >
           {loading ? 'Changing...' : 'Change Map'}
         </button>
@@ -77,8 +77,8 @@ export function DebugPanel({ onMapChange }: Props) {
             {error}
           </div>
         )}
-        <div className="text-sm text-purple-700 mt-2">
-          Maps from: <code className="bg-purple-100 px-2 py-0.5 rounded font-mono">ros2_ws/src/slam/maps</code>
+        <div className="text-sm text-blue-700 mt-2">
+          Maps from: <code className="bg-blue-100 px-2 py-0.5 rounded font-mono">ros2_ws/src/slam/maps</code>
         </div>
       </div>
     </section>

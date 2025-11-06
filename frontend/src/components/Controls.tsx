@@ -19,19 +19,19 @@ export function Controls({ goToLab, onStop, disabledMove, controlAllowed }: Prop
   const isRespondingToCommand = robotState === 'responding_to_command'
 
   return (
-    <section className="rounded-lg border-2 border-purple-400 bg-gradient-to-br from-white to-purple-50 p-4 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Controls</h2>
+    <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
+      <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Controls</h2>
       <div className="space-y-4">
         <div>
-          <label className="block text-base font-medium text-purple-700 mb-2" htmlFor="poi-select">
+          <label className="block text-base font-medium text-blue-700 mb-2" htmlFor="poi-select">
             Destination
           </label>
           <div className="flex items-center gap-2">
             <select
               id="poi-select"
-              className={`flex-1 rounded-lg border-2 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all ${
+              className={`flex-1 rounded-lg border-2 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
                 hasPois
-                  ? 'border-purple-300 bg-white text-purple-900 hover:border-purple-400'
+                  ? 'border-blue-300 bg-white text-blue-900 hover:border-blue-400'
                   : 'border-gray-300 bg-gray-100 text-gray-400'
               }`}
               value={selectedPoi}
@@ -53,7 +53,7 @@ export function Controls({ goToLab, onStop, disabledMove, controlAllowed }: Prop
               }}
               disabled={disabledMove || !selectedPoiData || !hasPois}
               title={disabledMove ? 'Controls not available' : !hasPois ? 'No destinations available' : !selectedPoiData ? 'Select a destination' : 'Navigate to destination'}
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
             >
               Go
             </button>

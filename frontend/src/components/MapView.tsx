@@ -72,7 +72,7 @@ export function MapView({ position }: Props) {
       ctx.rotate(yaw)
 
       // Draw robot as a triangle
-      ctx.fillStyle = '#a855f7' // Purple
+      ctx.fillStyle = '#2563eb' // Blue-600
       ctx.beginPath()
       ctx.moveTo(0, -8)
       ctx.lineTo(-5, 5)
@@ -81,7 +81,7 @@ export function MapView({ position }: Props) {
       ctx.fill()
 
       // Draw direction line
-      ctx.strokeStyle = '#ec4899' // Pink
+      ctx.strokeStyle = '#0ea5e9' // Sky-500
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.moveTo(0, 0)
@@ -94,9 +94,9 @@ export function MapView({ position }: Props) {
 
   if (!map) {
     return (
-      <section className="rounded-lg border-2 border-purple-400 bg-gradient-to-br from-white to-purple-50 p-4 shadow-lg">
-        <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Map</h2>
-        <div className="h-64 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg border-2 border-purple-300 flex items-center justify-center text-base font-medium text-purple-800">
+      <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
+        <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Map</h2>
+        <div className="h-64 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg border-2 border-blue-300 flex items-center justify-center text-base font-medium text-blue-800">
           Waiting for map...
         </div>
       </section>
@@ -104,15 +104,15 @@ export function MapView({ position }: Props) {
   }
 
   return (
-    <section className="rounded-lg border-2 border-purple-400 bg-gradient-to-br from-white to-purple-50 p-4 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Navigation Map</h2>
-      <div className="h-96 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border-2 border-purple-300 overflow-hidden relative">
+    <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
+      <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Navigation Map</h2>
+      <div className="h-96 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 overflow-hidden relative">
         <canvas
           ref={canvasRef}
           className="w-full h-full object-contain"
           style={{ imageRendering: 'pixelated' }}
         />
-        <div className="absolute bottom-2 left-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg font-semibold">
+        <div className="absolute bottom-2 left-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg font-semibold">
           Pos: ({robotPos.x.toFixed(2)}, {robotPos.y.toFixed(2)})
         </div>
       </div>
