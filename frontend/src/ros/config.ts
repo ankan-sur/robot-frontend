@@ -10,7 +10,7 @@ export const ROS_CONFIG = {
   messageTypes: {
     cmdVel: 'geometry_msgs/Twist',
     odom: 'nav_msgs/Odometry',
-    battery: 'std_msgs/Float32', // Adjust based on actual type
+    battery: 'std_msgs/UInt16', // Battery topic uses UInt16
     camera: 'sensor_msgs/Image',
   }
 };
