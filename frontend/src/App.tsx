@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Header } from './components/Header'
 import { Controls } from './components/Controls'
 import VideoFeed from './components/VideoFeed'
@@ -12,7 +11,6 @@ export default function App() {
   const odom = useOdom();
   const { stop } = useCmdVel();
   const { navigate } = useNavigateToPose();
-  const [showDebug, setShowDebug] = useState(false);
 
   // Extract position from odometry
   const position = odom?.pose.pose.position || { x: 0, y: 0, z: 0 };
@@ -40,7 +38,7 @@ export default function App() {
         <div className="lg:col-span-2 space-y-4">
           <MapView position={position} />
           <VideoFeed />
-          {showDebug && <DebugPanel />}
+          <DebugPanel />
         </div>
         <div className="lg:col-span-1 space-y-4">
           <Controls
@@ -51,14 +49,6 @@ export default function App() {
             controlAllowed={connected}
           />
           <TelemetryPanel />
-          <div className="text-center">
-            <button
-              onClick={() => setShowDebug(!showDebug)}
-              className="text-xs text-blue-600 hover:text-blue-800 underline"
-            >
-              {showDebug ? 'Hide' : 'Show'} Debug Panel
-            </button>
-          </div>
         </div>
       </main>
     </div>

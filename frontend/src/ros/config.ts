@@ -8,9 +8,11 @@ export const ROS_CONFIG = {
     camera: '/ascamera/camera_publisher/rgb0/image',
     map: '/map',
     mapMetadata: '/map_metadata',
+    pois: '/pois',
   },
   services: {
     changeMap: '/change_map',
+    listMaps: '/list_maps',
   },
   actions: {
     navigateToPose: '/navigate_to_pose',
@@ -22,6 +24,7 @@ export const ROS_CONFIG = {
     camera: 'sensor_msgs/Image',
     map: 'nav_msgs/OccupancyGrid',
     mapMetadata: 'nav_msgs/MapMetaData',
+    pois: 'std_msgs/String', // Adjust based on actual POI message type
   }
 };
 

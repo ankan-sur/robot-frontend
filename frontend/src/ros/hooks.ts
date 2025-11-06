@@ -197,15 +197,52 @@ export interface PointOfInterest {
   yaw?: number;
 }
 
-// Extract POIs from map metadata or use default labs
+// Fetch POIs from ROS topic
 export function usePointsOfInterest(): PointOfInterest[] {
-  const [pois, setPois] = useState<PointOfInterest[]>([
-    { name: 'Lab 1', x: 0.0, y: 0.0 },
-    { name: 'Lab 2', x: 10.0, y: 0.0 },
-  ]);
+  const [pois, setPois] = useState<PointOfInterest[]>([]);
 
-  // TODO: In the future, subscribe to a POI topic or read from map metadata
-  // For now, return default POIs
+  useEffect(() => {
+    if (getConnectionState() !== 'connected') {
+      setPois([]);
+      return;
+    }
+
+    const poisTopic = new ROSLIB.Topic({
+      ros,
+      name: ROS_CONFIG.topics.pois,
+      messageType: ROS_CONFIG.messageTypes.pois || 'std_msgs/String'
+    });
+    
+    poisTopic.subscribe((msg: any) => {
+      try {
+        // Parse POIs from message - adjust based on actual message structure
+        // Could be JSON string, or structured message
+        let parsed: PointOfInterest[] = [];
+        
+        if (typeof msg === 'string') {
+          parsed = JSON.parse(msg);
+        } else if (msg.data) {
+          parsed = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data;
+        } else if (Array.isArray(msg.pois)) {
+          parsed = msg.pois;
+        } else if (Array.isArray(msg)) {
+          parsed = msg;
+        }
+        
+        if (Array.isArray(parsed)) {
+          setPois(parsed);
+        }
+      } catch (error) {
+        console.error('Failed to parse POIs:', error);
+        setPois([]);
+      }
+    });
+    
+    return () => {
+      poisTopic.unsubscribe();
+    };
+  }, []);
+
   return pois;
 }
 
@@ -297,5 +334,77 @@ export function changeMap(mapName: string): Promise<void> {
       }
     });
   });
+}
+
+// Fetch available maps from ROS service
+export function useAvailableMaps(): string[] {
+  const [maps, setMaps] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (getConnectionState() !== 'connected') {
+      setMaps([]);
+      return;
+    }
+
+    // Try to call list_maps service
+    const service = new ROSLIB.Service({
+      ros,
+      name: ROS_CONFIG.services.listMaps,
+      serviceType: 'std_srvs/Empty' // Adjust based on actual service type
+    });
+
+    const request = new ROSLIB.ServiceRequest({});
+
+    service.callService(request, (result: any) => {
+      try {
+        // Parse maps from result - adjust based on actual service response
+        let mapList: string[] = [];
+        
+        if (result.maps && Array.isArray(result.maps)) {
+          mapList = result.maps;
+        } else if (result.data && Array.isArray(result.data)) {
+          mapList = result.data;
+        } else if (typeof result === 'string') {
+          mapList = JSON.parse(result);
+        }
+        
+        if (Array.isArray(mapList)) {
+          setMaps(mapList);
+        }
+      } catch (error) {
+        console.error('Failed to parse maps list:', error);
+        setMaps([]);
+      }
+    }, (error: any) => {
+      console.error('Failed to list maps:', error);
+      setMaps([]);
+    });
+
+    // Also try subscribing to a topic if available
+    const mapsTopic = new ROSLIB.Topic({
+      ros,
+      name: '/available_maps',
+      messageType: 'std_msgs/String'
+    });
+
+    mapsTopic.subscribe((msg: any) => {
+      try {
+        const mapList = typeof msg === 'string' 
+          ? JSON.parse(msg) 
+          : (msg.data ? JSON.parse(msg.data) : []);
+        if (Array.isArray(mapList)) {
+          setMaps(mapList);
+        }
+      } catch (error) {
+        console.error('Failed to parse maps from topic:', error);
+      }
+    });
+
+    return () => {
+      mapsTopic.unsubscribe();
+    };
+  }, []);
+
+  return maps;
 }
 
