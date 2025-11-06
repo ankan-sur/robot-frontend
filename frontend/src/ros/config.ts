@@ -6,12 +6,22 @@ export const ROS_CONFIG = {
     odom: '/odom',
     battery: '/ros_robot_controller/battery',
     camera: '/ascamera/camera_publisher/rgb0/image',
+    map: '/map',
+    mapMetadata: '/map_metadata',
+  },
+  services: {
+    changeMap: '/change_map',
+  },
+  actions: {
+    navigateToPose: '/navigate_to_pose',
   },
   messageTypes: {
     cmdVel: 'geometry_msgs/Twist',
     odom: 'nav_msgs/Odometry',
     battery: 'std_msgs/UInt16', // Battery topic uses UInt16
     camera: 'sensor_msgs/Image',
+    map: 'nav_msgs/OccupancyGrid',
+    mapMetadata: 'nav_msgs/MapMetaData',
   }
 };
 

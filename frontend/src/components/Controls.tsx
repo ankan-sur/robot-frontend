@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { usePointsOfInterest, PointOfInterest } from '../ros/hooks'
 
 type Props = {
-  goToLab: (n: number) => void
+  goToLab: (poi: PointOfInterest) => void
   onStop: () => void
   disabledMove?: boolean
   disabledStop?: boolean
@@ -9,51 +10,57 @@ type Props = {
 }
 
 export function Controls({ goToLab, onStop, disabledMove, disabledStop, controlAllowed }: Props) {
-  const [selectedLab, setSelectedLab] = useState<number | ''>('')
+  const pois = usePointsOfInterest()
+  const [selectedPoi, setSelectedPoi] = useState<string>('')
   
+  const selectedPoiData = pois.find(p => `${p.x},${p.y}` === selectedPoi)
+
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="text-lg font-medium mb-3 text-slate-800">Controls</h2>
+    <section className="rounded-lg border-2 border-blue-300 bg-white p-4 shadow-md">
+      <h2 className="text-lg font-semibold mb-3 text-blue-900">Controls</h2>
       <div className="space-y-4">
-        <div className="flex items-center gap-3 mb-2">
-          <label className="text-sm text-slate-600" htmlFor="lab-select">Destination</label>
-          <select
-            id="lab-select"
-            className="flex-1 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-300"
-            value={selectedLab}
-            onChange={(e) => {
-              const v = e.target.value
-              setSelectedLab(v === '' ? '' : Number(v))
-            }}
-          >
-            <option value="">Select destination…</option>
-            <option value={1}>Lab 1</option>
-            <option value={2}>Lab 2</option>
-          </select>
-          <button
-            onClick={() => { if (selectedLab !== '') goToLab(selectedLab as number) }}
-            disabled={disabledMove || selectedLab === ''}
-            title={disabledMove ? 'Controls not available' : selectedLab === '' ? 'Select a destination' : 'Send robot to destination'}
-            className="px-4 py-2 rounded bg-sky-700 hover:bg-sky-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Go
-          </button>
+        <div>
+          <label className="block text-sm font-medium text-blue-800 mb-2" htmlFor="poi-select">
+            Destination
+          </label>
+          <div className="flex items-center gap-2">
+            <select
+              id="poi-select"
+              className="flex-1 rounded border-2 border-blue-200 bg-white px-3 py-2 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={selectedPoi}
+              onChange={(e) => setSelectedPoi(e.target.value)}
+            >
+              <option value="">Select destination…</option>
+              {pois.map((poi, idx) => (
+                <option key={idx} value={`${poi.x},${poi.y}`}>
+                  {poi.name} ({poi.x.toFixed(1)}, {poi.y.toFixed(1)})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => {
+                if (selectedPoiData) goToLab(selectedPoiData)
+              }}
+              disabled={disabledMove || !selectedPoiData}
+              title={disabledMove ? 'Controls not available' : !selectedPoiData ? 'Select a destination' : 'Navigate to destination'}
+              className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Go
+            </button>
+          </div>
         </div>
-        <div className="text-xs text-slate-500 mb-2">
-          {controlAllowed ? 'You have control.' : 'Controls are currently disabled until the robot grants control.'}
+        <div className={`text-xs p-2 rounded ${controlAllowed ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'}`}>
+          {controlAllowed ? '✓ You have control' : '⚠ Controls disabled until robot grants control'}
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={onStop}
-            disabled={disabledStop}
-            title={disabledStop ? 'Stop disabled' : 'Immediately stop the robot'}
-            className="px-4 py-2 rounded bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-50 disabled:cursor-not-allowed w-full"
-          >
-            Stop
-          </button>
-        </div>
+        <button
+          onClick={onStop}
+          disabled={disabledStop}
+          title={disabledStop ? 'Stop disabled' : 'Immediately stop the robot'}
+          className="w-full px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Emergency Stop
+        </button>
       </div>
     </section>
   )
 }
-
