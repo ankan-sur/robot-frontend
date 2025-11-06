@@ -72,7 +72,7 @@ export function MapView({ position }: Props) {
       ctx.rotate(yaw)
 
       // Draw robot as a triangle
-      ctx.fillStyle = '#2563eb' // Blue
+      ctx.fillStyle = '#a855f7' // Purple
       ctx.beginPath()
       ctx.moveTo(0, -8)
       ctx.lineTo(-5, 5)
@@ -81,7 +81,7 @@ export function MapView({ position }: Props) {
       ctx.fill()
 
       // Draw direction line
-      ctx.strokeStyle = '#1e40af'
+      ctx.strokeStyle = '#ec4899' // Pink
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.moveTo(0, 0)
@@ -94,9 +94,9 @@ export function MapView({ position }: Props) {
 
   if (!map) {
     return (
-      <section className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
-        <h2 className="text-lg font-semibold mb-3 text-blue-900">Map</h2>
-        <div className="h-64 bg-blue-100 rounded flex items-center justify-center text-sm text-blue-700">
+      <section className="rounded-lg border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-4 shadow-lg">
+        <h2 className="text-lg font-semibold mb-3 bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">Map</h2>
+        <div className="h-64 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg border-2 border-amber-300 flex items-center justify-center text-sm font-medium text-amber-800">
           Waiting for map...
         </div>
       </section>
@@ -104,15 +104,15 @@ export function MapView({ position }: Props) {
   }
 
   return (
-    <section className="rounded-lg border-2 border-blue-300 bg-white p-4 shadow-md">
-      <h2 className="text-lg font-semibold mb-3 text-blue-900">Navigation Map</h2>
-      <div className="h-96 bg-blue-50 rounded border-2 border-blue-200 overflow-hidden relative">
+    <section className="rounded-lg border-2 border-emerald-400 bg-gradient-to-br from-white to-emerald-50 p-4 shadow-lg">
+      <h2 className="text-lg font-semibold mb-3 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Navigation Map</h2>
+      <div className="h-96 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg border-2 border-emerald-300 overflow-hidden relative">
         <canvas
           ref={canvasRef}
           className="w-full h-full object-contain"
           style={{ imageRendering: 'pixelated' }}
         />
-        <div className="absolute bottom-2 left-2 bg-blue-900/80 text-white text-xs px-2 py-1 rounded">
+        <div className="absolute bottom-2 left-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs px-3 py-1.5 rounded-lg shadow-lg font-semibold">
           Pos: ({robotPos.x.toFixed(2)}, {robotPos.y.toFixed(2)})
         </div>
       </div>

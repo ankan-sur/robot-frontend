@@ -9,6 +9,12 @@ export const ROS_CONFIG = {
     map: '/map',
     mapMetadata: '/map_metadata',
     pois: '/pois',
+    imuRpy: '/imu/rpy/filtered',
+    jointStates: '/joint_states',
+    diagnostics: '/diagnostics',
+    button: '/ros_robot_controller/button',
+    robotState: '/robot_state', // 'idle', 'responding_to_command', 'heading_to_charger'
+    currentCommand: '/current_command', // Current destination/command info
   },
   services: {
     changeMap: '/change_map',
@@ -25,6 +31,12 @@ export const ROS_CONFIG = {
     map: 'nav_msgs/OccupancyGrid',
     mapMetadata: 'nav_msgs/MapMetaData',
     pois: 'std_msgs/String', // Adjust based on actual POI message type
+    imuRpy: 'geometry_msgs/Vector3', // Roll, Pitch, Yaw
+    jointStates: 'sensor_msgs/JointState',
+    diagnostics: 'diagnostic_msgs/DiagnosticArray',
+    button: 'std_msgs/Bool', // or UInt8, adjust based on actual type
+    robotState: 'std_msgs/String', // Robot state string
+    currentCommand: 'std_msgs/String', // Current command/destination info
   }
 };
 

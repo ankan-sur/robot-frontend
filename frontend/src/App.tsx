@@ -32,7 +32,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50">
       <Header title="HFH Robot Dashboard" />
       <main className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
@@ -45,7 +45,6 @@ export default function App() {
             goToLab={goToLab}
             onStop={stop}
             disabledMove={!connected}
-            disabledStop={!connected}
             controlAllowed={connected}
           />
           <TelemetryPanel />

@@ -83,8 +83,31 @@ export function useBattery() {
     
     batteryTopic.subscribe((msg: any) => {
       // Extract battery value - adjust based on actual message structure
-      const value = msg.data ?? msg.percentage ?? msg.battery_level ?? null;
-      setBattery(typeof value === 'number' ? value : null);
+      const rawValue = msg.data ?? msg.percentage ?? msg.battery_level ?? null;
+      
+      if (typeof rawValue === 'number') {
+        // Convert millivolts to percentage
+        // Assuming values are in millivolts (e.g., 8365 = 8.365V)
+        // For a 2S LiPo: 6000mV (0%) to 8400mV (100%)
+        const MIN_VOLTAGE_MV = 6000;  // Empty battery
+        const MAX_VOLTAGE_MV = 8400;  // Fully charged battery
+        
+        let percentage: number;
+        
+        // If value is already in percentage range (0-100), use as-is
+        if (rawValue >= 0 && rawValue <= 100) {
+          percentage = rawValue;
+        } else {
+          // Otherwise, assume it's millivolts and convert to percentage
+          percentage = ((rawValue - MIN_VOLTAGE_MV) / (MAX_VOLTAGE_MV - MIN_VOLTAGE_MV)) * 100;
+          // Clamp between 0 and 100
+          percentage = Math.max(0, Math.min(100, percentage));
+        }
+        
+        setBattery(percentage);
+      } else {
+        setBattery(null);
+      }
     });
     
     return () => {
@@ -93,6 +116,165 @@ export function useBattery() {
   }, []);
   
   return battery;
+}
+
+export interface IMURPY {
+  x: number; // Roll
+  y: number; // Pitch
+  z: number; // Yaw
+}
+
+export function useIMURPY() {
+  const [rpy, setRpy] = useState<IMURPY | null>(null);
+  
+  useEffect(() => {
+    if (getConnectionState() !== 'connected') return;
+
+    const imuTopic = new ROSLIB.Topic({
+      ros,
+      name: ROS_CONFIG.topics.imuRpy,
+      messageType: ROS_CONFIG.messageTypes.imuRpy
+    });
+    
+    imuTopic.subscribe((msg: any) => {
+      // geometry_msgs/Vector3 has x, y, z fields
+      const roll = msg.x ?? msg.roll ?? 0;
+      const pitch = msg.y ?? msg.pitch ?? 0;
+      const yaw = msg.z ?? msg.yaw ?? 0;
+      setRpy({ x: roll, y: pitch, z: yaw });
+    });
+    
+    return () => {
+      imuTopic.unsubscribe();
+    };
+  }, []);
+  
+  return rpy;
+}
+
+export interface JointState {
+  name: string[];
+  position: number[];
+  velocity: number[];
+  effort: number[];
+}
+
+export function useJointStates() {
+  const [jointStates, setJointStates] = useState<JointState | null>(null);
+  
+  useEffect(() => {
+    if (getConnectionState() !== 'connected') return;
+
+    const jointTopic = new ROSLIB.Topic({
+      ros,
+      name: ROS_CONFIG.topics.jointStates,
+      messageType: ROS_CONFIG.messageTypes.jointStates
+    });
+    
+    jointTopic.subscribe((msg: any) => {
+      // sensor_msgs/JointState structure
+      setJointStates({
+        name: msg.name || [],
+        position: msg.position || [],
+        velocity: msg.velocity || [],
+        effort: msg.effort || []
+      });
+    });
+    
+    return () => {
+      jointTopic.unsubscribe();
+    };
+  }, []);
+  
+  return jointStates;
+}
+
+export function useButton() {
+  const [buttonPressed, setButtonPressed] = useState<boolean | null>(null);
+  
+  useEffect(() => {
+    if (getConnectionState() !== 'connected') return;
+
+    const buttonTopic = new ROSLIB.Topic({
+      ros,
+      name: ROS_CONFIG.topics.button,
+      messageType: ROS_CONFIG.messageTypes.button
+    });
+    
+    buttonTopic.subscribe((msg: any) => {
+      // Could be std_msgs/Bool or std_msgs/UInt8
+      const value = msg.data ?? msg.value ?? false;
+      setButtonPressed(Boolean(value));
+    });
+    
+    return () => {
+      buttonTopic.unsubscribe();
+    };
+  }, []);
+  
+  return buttonPressed;
+}
+
+export type RobotState = 'idle' | 'responding_to_command' | 'heading_to_charger';
+
+export function useRobotState() {
+  const [robotState, setRobotState] = useState<RobotState | null>(null);
+  
+  useEffect(() => {
+    if (getConnectionState() !== 'connected') return;
+
+    const stateTopic = new ROSLIB.Topic({
+      ros,
+      name: ROS_CONFIG.topics.robotState,
+      messageType: ROS_CONFIG.messageTypes.robotState
+    });
+    
+    stateTopic.subscribe((msg: any) => {
+      const stateStr = (msg.data ?? msg.state ?? '').toLowerCase().trim();
+      // Normalize state values
+      if (stateStr === 'idle' || stateStr === 'idle_state') {
+        setRobotState('idle');
+      } else if (stateStr === 'responding_to_command' || stateStr === 'responding' || stateStr === 'executing_command') {
+        setRobotState('responding_to_command');
+      } else if (stateStr === 'heading_to_charger' || stateStr === 'charging' || stateStr === 'going_to_charger') {
+        setRobotState('heading_to_charger');
+      } else {
+        // Default to idle if unknown
+        setRobotState('idle');
+      }
+    });
+    
+    return () => {
+      stateTopic.unsubscribe();
+    };
+  }, []);
+  
+  return robotState;
+}
+
+export function useCurrentCommand() {
+  const [currentCommand, setCurrentCommand] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (getConnectionState() !== 'connected') return;
+
+    const commandTopic = new ROSLIB.Topic({
+      ros,
+      name: ROS_CONFIG.topics.currentCommand,
+      messageType: ROS_CONFIG.messageTypes.currentCommand
+    });
+    
+    commandTopic.subscribe((msg: any) => {
+      const command = msg.data ?? msg.command ?? msg.destination ?? null;
+      setCurrentCommand(typeof command === 'string' ? command : null);
+    });
+    
+    return () => {
+      commandTopic.unsubscribe();
+    };
+  }, []);
+  
+  return currentCommand;
 }
 
 export function useCmdVel() {
