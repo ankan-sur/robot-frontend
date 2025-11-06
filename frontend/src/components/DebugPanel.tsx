@@ -122,12 +122,42 @@ function TeleopBlock() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
         <div className="flex items-center gap-3">
           <label className="text-sm text-slate-600 w-20">Linear</label>
-          <input className="flex-1" type="range" min="0" max="1.5" step="0.05" value={lin} onChange={e => setLin(+e.target.value)} />
+          <input
+            className="flex-1"
+            type="range"
+            min="0"
+            max="1.5"
+            step="0.05"
+            value={lin}
+            onChange={e => {
+              const v = +e.target.value
+              setLin(v)
+              // If currently driving forward/back, update speed live
+              if (held.current.vx !== 0) {
+                held.current.vx = Math.sign(held.current.vx) * v
+              }
+            }}
+          />
           <div className="w-14 text-right font-mono text-sm text-slate-700">{lin.toFixed(2)}</div>
         </div>
         <div className="flex items-center gap-3">
           <label className="text-sm text-slate-600 w-20">Angular</label>
-          <input className="flex-1" type="range" min="0" max="2.5" step="0.05" value={ang} onChange={e => setAng(+e.target.value)} />
+          <input
+            className="flex-1"
+            type="range"
+            min="0"
+            max="2.5"
+            step="0.05"
+            value={ang}
+            onChange={e => {
+              const v = +e.target.value
+              setAng(v)
+              // If currently turning, update speed live
+              if (held.current.wz !== 0) {
+                held.current.wz = Math.sign(held.current.wz) * v
+              }
+            }}
+          />
           <div className="w-14 text-right font-mono text-sm text-slate-700">{ang.toFixed(2)}</div>
         </div>
       </div>
