@@ -1,7 +1,8 @@
 import { useState } from 'react'
+
 type Props = {
   goToLab: (n: number) => void
-  onStop: () => Promise<void>
+  onStop: () => void
   disabledMove?: boolean
   disabledStop?: boolean
   controlAllowed?: boolean
@@ -9,6 +10,7 @@ type Props = {
 
 export function Controls({ goToLab, onStop, disabledMove, disabledStop, controlAllowed }: Props) {
   const [selectedLab, setSelectedLab] = useState<number | ''>('')
+  
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4">
       <h2 className="text-lg font-medium mb-3 text-slate-800">Controls</h2>

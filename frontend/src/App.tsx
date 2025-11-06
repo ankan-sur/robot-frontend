@@ -1,81 +1,99 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Header } from './components/Header'
 import { Controls } from './components/Controls'
 import VideoFeed from './components/VideoFeed'
 import { MapView } from './components/MapView'
-import { useTelemetry } from './hooks/useTelemetry'
-import { apiMove, apiStop } from './lib/api'
+import { useRosConnection, useOdom, useBattery, useCmdVel } from './ros/hooks'
 
 export default function App() {
-  const apiBase = ((import.meta as any).env.VITE_API_BASE) ?? 'http://localhost:8000'
-  const wsUrl = useMemo(() => {
-    const httpBase = apiBase.replace('https://', 'wss://').replace('http://', 'ws://')
-    return `${httpBase}/ws/telemetry`
-  }, [apiBase])
+  const { connected, state, latency } = useRosConnection();
+  const odom = useOdom();
+  const battery = useBattery();
+  const { send: sendCmdVel, stop } = useCmdVel();
 
-  const { telemetry, ok } = useTelemetry(wsUrl, `${apiBase}/status`)
-  const token = (import.meta as any).env.VITE_CONTROL_TOKEN as string | undefined
-
-  const controlAllowed = ok && (telemetry?.sdk_available ?? true) && Boolean(telemetry?.control_allowed)
-  const battery = telemetry?.battery ?? 0
-
-  // Robot log (simple derived log from telemetry changes)
+  // Robot log
   const [logs, setLogs] = useState<string[]>([])
-  const lastCommandRef = useRef<string | undefined>(undefined)
-  useEffect(() => {
-    const ts = new Date().toLocaleTimeString()
-    if (telemetry?.last_command && telemetry.last_command !== lastCommandRef.current) {
-      lastCommandRef.current = telemetry.last_command
-      setLogs(prev => [`${ts} • cmd: ${telemetry.last_command}`, ...prev].slice(0, 100))
-    }
-    if (typeof telemetry?.battery === 'number') {
-      setLogs(prev => [`${ts} • battery: ${telemetry.battery.toFixed(1)}%`, ...prev].slice(0, 100))
-    }
-  }, [telemetry])
+  const lastOdomRef = useRef<any>(null);
+  const lastBatteryRef = useRef<number | null>(null);
 
-  // Go to Lab buttons
+  useEffect(() => {
+    const ts = new Date().toLocaleTimeString();
+    
+    if (odom && odom !== lastOdomRef.current) {
+      const { x, y } = odom.pose.pose.position;
+      lastOdomRef.current = odom;
+      setLogs(prev => [`${ts} • pos: (${x.toFixed(2)}, ${y.toFixed(2)})`, ...prev].slice(0, 100));
+    }
+    
+    if (battery !== null && battery !== lastBatteryRef.current) {
+      lastBatteryRef.current = battery;
+      setLogs(prev => [`${ts} • battery: ${battery.toFixed(1)}%`, ...prev].slice(0, 100));
+    }
+  }, [odom, battery]);
+
+  // Go to Lab - send navigation commands
   const goToLab = async (labIdx: number) => {
-    if (!controlAllowed) return
-    // This assumes direction/command for the backend – update as needed
-    const label = labIdx === 1 ? 'lab1' : 'lab2'
-    await apiMove(apiBase, label, undefined, token)
-  }
+    if (!connected) return;
+    
+    // Simple movement: adjust based on your navigation needs
+    // For now, just send a forward command
+    const speed = 0.3;
+    sendCmdVel(speed, 0); // Move forward
+    
+    // In a real implementation, you'd use Nav2 action client
+    // For now, this is a placeholder
+  };
 
-  useEffect(() => {
-    // Adjust defaults if needed
-  }, [])
+  // Extract position from odometry
+  const position = odom?.pose.pose.position || { x: 0, y: 0, z: 0 };
+  const batteryLevel = battery ?? 0;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <Header title="HFH Robot Dashboard" />
       <main className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
-          <MapView />
-          <VideoFeed streamUrl={apiBase + '/video'} />
+          <MapView position={position} />
+          <VideoFeed />
         </div>
         <div className="lg:col-span-1 space-y-4">
           <Controls
             goToLab={goToLab}
-            onStop={async () => { await apiStop(apiBase, token) }}
-            disabledMove={!controlAllowed}
-            disabledStop={false}
-            controlAllowed={controlAllowed}
+            onStop={stop}
+            disabledMove={!connected}
+            disabledStop={!connected}
+            controlAllowed={connected}
           />
           <section className="rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="text-lg font-medium mb-3 text-slate-800">Battery</h2>
             <div className="bg-slate-50 rounded p-3 text-sm">
               <div className="text-slate-500">Level</div>
-              <div className="text-slate-800">{battery.toFixed(1)}%</div>
+              <div className="text-slate-800">{batteryLevel.toFixed(1)}%</div>
             </div>
           </section>
           <section className="rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="text-lg font-medium mb-3 text-slate-800">Connection Status</h2>
-            <div className="bg-slate-50 rounded p-3 text-sm">
-              <div className="text-slate-500">Robot</div>
-              <div className={`flex items-center gap-2 ${ok ? 'text-emerald-600' : 'text-rose-600'}`}>
-                <span className={`w-2 h-2 rounded-full ${ok ? 'bg-emerald-600' : 'bg-rose-600'}`}></span>
-                <span>{ok ? 'Connected' : 'Disconnected'}</span>
+            <div className="bg-slate-50 rounded p-3 text-sm space-y-2">
+              <div>
+                <div className="text-slate-500">ROS Bridge</div>
+                <div className={`flex items-center gap-2 ${connected ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-600' : 'bg-rose-600'}`}></span>
+                  <span>{state}</span>
+                </div>
               </div>
+              {latency !== null && (
+                <div>
+                  <div className="text-slate-500">Latency</div>
+                  <div className="text-slate-800">{latency}ms</div>
+                </div>
+              )}
+            </div>
+          </section>
+          <section className="rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-lg font-medium mb-3 text-slate-800">Position</h2>
+            <div className="bg-slate-50 rounded p-3 text-sm">
+              <div className="text-slate-500">X: {position.x.toFixed(2)}</div>
+              <div className="text-slate-500">Y: {position.y.toFixed(2)}</div>
             </div>
           </section>
           <section className="rounded-lg border border-slate-200 bg-white p-4">
