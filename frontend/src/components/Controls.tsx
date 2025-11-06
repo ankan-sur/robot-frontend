@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { usePointsOfInterest, PointOfInterest, useRobotState } from '../ros/hooks'
+import { topics } from '../ros/ros'
 
 type Props = {
   goToLab: (poi: PointOfInterest) => void
@@ -75,7 +76,52 @@ export function Controls({ goToLab, onStop, disabledMove, controlAllowed }: Prop
         >
           Stop
         </button>
+
+        {/* Teleop (Twist) */}
+        <div className="rounded-lg border-2 border-blue-300 bg-white p-3">
+          <div className="text-base font-medium text-blue-800 mb-2">Teleop</div>
+          <TeleopBlock />
+        </div>
+
+        {/* Command Buttons via /ui/cmd */}
+        <div className="rounded-lg border-2 border-blue-300 bg-white p-3">
+          <div className="text-base font-medium text-blue-800 mb-2">Quick Commands</div>
+          <div className="flex flex-wrap gap-2">
+            <button className="px-3 py-1.5 border rounded bg-blue-600 hover:bg-blue-700 text-white" onClick={() => topics.uiCmd.publish({ data: JSON.stringify({ type: 'goto', target: 'lab1' }) } as any)}>Go Lab 1</button>
+            <button className="px-3 py-1.5 border rounded bg-blue-600 hover:bg-blue-700 text-white" onClick={() => topics.uiCmd.publish({ data: JSON.stringify({ type: 'goto', target: 'lab2' }) } as any)}>Go Lab 2</button>
+            <button className="px-3 py-1.5 border rounded bg-slate-100 hover:bg-slate-200" onClick={() => topics.uiCancel.publish({ data: JSON.stringify({ id: 'current' }) } as any)}>Cancel</button>
+          </div>
+        </div>
       </div>
     </section>
+  )
+}
+
+function TeleopBlock() {
+  const [lin, setLin] = useState(0.2)
+  const [ang, setAng] = useState(0.8)
+  const held = useRef({ vx: 0, wz: 0 })
+
+  const publishTwist = () => topics.cmdVel.publish({
+    linear: { x: held.current.vx, y: 0, z: 0 },
+    angular: { x: 0, y: 0, z: held.current.wz },
+  } as any)
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <label className="text-sm text-slate-600">Linear</label>
+        <input type="range" min="0.05" max="0.6" step="0.05" value={lin} onChange={e => setLin(+e.target.value)} />
+        <label className="text-sm text-slate-600">Angular</label>
+        <input type="range" min="0.2" max="1.2" step="0.05" value={ang} onChange={e => setAng(+e.target.value)} />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button className="px-3 py-1.5 border rounded bg-slate-100 hover:bg-slate-200" onMouseDown={() => { held.current.vx = lin; publishTwist() }} onMouseUp={() => { held.current.vx = 0; publishTwist() }}>Fwd</button>
+        <button className="px-3 py-1.5 border rounded bg-slate-100 hover:bg-slate-200" onMouseDown={() => { held.current.vx = -lin; publishTwist() }} onMouseUp={() => { held.current.vx = 0; publishTwist() }}>Rev</button>
+        <button className="px-3 py-1.5 border rounded bg-slate-100 hover:bg-slate-200" onMouseDown={() => { held.current.wz = ang; publishTwist() }} onMouseUp={() => { held.current.wz = 0; publishTwist() }}>Left</button>
+        <button className="px-3 py-1.5 border rounded bg-slate-100 hover:bg-slate-200" onMouseDown={() => { held.current.wz = -ang; publishTwist() }} onMouseUp={() => { held.current.wz = 0; publishTwist() }}>Right</button>
+        <button className="px-3 py-1.5 border rounded bg-slate-100 hover:bg-slate-200" onClick={() => { held.current = { vx: 0, wz: 0 }; publishTwist() }}>Stop</button>
+      </div>
+    </div>
   )
 }

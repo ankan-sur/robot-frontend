@@ -21,6 +21,7 @@ export const ROS_CONFIG = {
     cmdFeedback: '/robot/cmd_feedback',
     uiCmd: '/ui/cmd',
     uiCancel: '/ui/cmd_cancel',
+    rosout: '/rosout',
   },
   services: {
     changeMap: '/change_map',
@@ -49,6 +50,7 @@ export const ROS_CONFIG = {
     cmdFeedback: 'std_msgs/String',
     uiCmd: 'std_msgs/String',
     uiCancel: 'std_msgs/String',
+    rosout: 'rcl_interfaces/Log',
   }
 };
 

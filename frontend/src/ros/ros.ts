@@ -54,4 +54,5 @@ export const topics = {
   cmdFeedback: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.cmdFeedback, messageType: ROS_CONFIG.messageTypes.cmdFeedback }),
   uiCmd: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.uiCmd, messageType: ROS_CONFIG.messageTypes.uiCmd }),
   uiCancel: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.uiCancel, messageType: ROS_CONFIG.messageTypes.uiCancel }),
+  rosout: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.rosout, messageType: ROS_CONFIG.messageTypes.rosout }),
 };
