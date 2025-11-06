@@ -1,0 +1,13 @@
+# Core API framework
+fastapi==0.115.5
+uvicorn[standard]==0.30.6
+
+# Data validation
+pydantic>=2.7,<3
+
+# NOTE: Do NOT install rclpy via pip for ROS 2 Humble.
+# Install ROS 2 Humble and rclpy via the system packages on Jetson/Raspberry Pi.
+
+
+
+
