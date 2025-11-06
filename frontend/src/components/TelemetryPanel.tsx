@@ -19,12 +19,12 @@ export function TelemetryPanel() {
     ? { x: tel.pose_map.x, y: tel.pose_map.y, z: 0 }
     : positionFromOdom
 
-  const velocity = odom?.twist?.linear || { x: 0, y: 0, z: 0 }
-  const angularVel = odom?.twist?.angular || { x: 0, y: 0, z: 0 }
+  const velocity = (odom?.twist as any)?.twist?.linear || (odom?.twist as any)?.linear || { x: 0, y: 0, z: 0 }
+  const angularVel = (odom?.twist as any)?.twist?.angular || (odom?.twist as any)?.angular || { x: 0, y: 0, z: 0 }
   const speed = Math.sqrt((velocity.x || 0) ** 2 + (velocity.y || 0) ** 2)
 
-  // Battery merge: prefer telemetry percentage if present; otherwise use the hook value
-  const mergedBattery = (typeof tel?.battery === 'number' && !isNaN(tel.battery)) ? tel.battery : batteryHook
+  // Battery: temporarily rely only on the dedicated battery topic (UInt16/Float32 tolerant)
+  const mergedBattery = batteryHook
 
   const getStateDisplay = () => {
     if (!robotState) {
@@ -148,4 +148,3 @@ export function TelemetryPanel() {
 }
 
 export default TelemetryPanel
-

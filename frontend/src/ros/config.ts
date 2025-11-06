@@ -13,7 +13,7 @@ export const ROS_CONFIG = {
     jointStates: '/joint_states',
     diagnostics: '/diagnostics',
     button: '/ros_robot_controller/button',
-    robotState: '/robot_state', // 'idle', 'responding_to_command', 'heading_to_charger'
+    robotState: '/robot/state', // 'idle', 'responding_to_command', 'heading_to_charger'
     currentCommand: '/current_command', // Current destination/command info
     // Optional UI/bridge topics (if your ui_bridge publishes these)
     robotTelemetry: '/robot/telemetry',

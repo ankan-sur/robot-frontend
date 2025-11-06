@@ -95,11 +95,27 @@ function TeleopBlock() {
   const [lin, setLin] = useState(0.3)
   const [ang, setAng] = useState(1.0)
   const held = useRef({ vx: 0, wz: 0 })
+  const intervalRef = useRef<number | null>(null)
 
   const publishTwist = () => topics.cmdVel.publish({
     linear: { x: held.current.vx, y: 0, z: 0 },
     angular: { x: 0, y: 0, z: held.current.wz },
   } as any)
+
+  const startLoop = () => {
+    if (intervalRef.current != null) return
+    // Publish at ~20 Hz while a button is held
+    intervalRef.current = window.setInterval(() => {
+      publishTwist()
+    }, 50)
+  }
+
+  const stopLoopIfIdle = () => {
+    if (held.current.vx === 0 && held.current.wz === 0 && intervalRef.current != null) {
+      window.clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -116,11 +132,33 @@ function TeleopBlock() {
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200" onMouseDown={() => { held.current.vx = lin; publishTwist() }} onMouseUp={() => { held.current.vx = 0; publishTwist() }}>Fwd</button>
-        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200" onMouseDown={() => { held.current.vx = -lin; publishTwist() }} onMouseUp={() => { held.current.vx = 0; publishTwist() }}>Rev</button>
-        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200" onMouseDown={() => { held.current.wz = ang; publishTwist() }} onMouseUp={() => { held.current.wz = 0; publishTwist() }}>Left</button>
-        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200" onMouseDown={() => { held.current.wz = -ang; publishTwist() }} onMouseUp={() => { held.current.wz = 0; publishTwist() }}>Right</button>
-        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200" onClick={() => { held.current = { vx: 0, wz: 0 }; publishTwist() }}>Stop</button>
+        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200"
+          onMouseDown={() => { held.current.vx = lin; startLoop() }}
+          onMouseUp={() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() }}
+          onTouchStart={(e) => { e.preventDefault(); held.current.vx = lin; startLoop() }}
+          onTouchEnd={(e) => { e.preventDefault(); held.current.vx = 0; publishTwist(); stopLoopIfIdle() }}
+        >Fwd</button>
+        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200"
+          onMouseDown={() => { held.current.vx = -lin; startLoop() }}
+          onMouseUp={() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() }}
+          onTouchStart={(e) => { e.preventDefault(); held.current.vx = -lin; startLoop() }}
+          onTouchEnd={(e) => { e.preventDefault(); held.current.vx = 0; publishTwist(); stopLoopIfIdle() }}
+        >Rev</button>
+        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200"
+          onMouseDown={() => { held.current.wz = ang; startLoop() }}
+          onMouseUp={() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() }}
+          onTouchStart={(e) => { e.preventDefault(); held.current.wz = ang; startLoop() }}
+          onTouchEnd={(e) => { e.preventDefault(); held.current.wz = 0; publishTwist(); stopLoopIfIdle() }}
+        >Left</button>
+        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200"
+          onMouseDown={() => { held.current.wz = -ang; startLoop() }}
+          onMouseUp={() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() }}
+          onTouchStart={(e) => { e.preventDefault(); held.current.wz = -ang; startLoop() }}
+          onTouchEnd={(e) => { e.preventDefault(); held.current.wz = 0; publishTwist(); stopLoopIfIdle() }}
+        >Right</button>
+        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200"
+          onClick={() => { held.current = { vx: 0, wz: 0 }; publishTwist(); stopLoopIfIdle() }}
+        >Stop</button>
       </div>
     </div>
   )

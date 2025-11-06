@@ -558,7 +558,7 @@ export function useAvailableMaps(): string[] {
     const service = new ROSLIB.Service({
       ros,
       name: ROS_CONFIG.services.listMaps,
-      serviceType: 'std_srvs/Empty' // Adjust based on actual service type
+      serviceType: 'std_srvs/Trigger' // Returns { success: bool, message: string }
     });
 
     const request = new ROSLIB.ServiceRequest({});
@@ -572,6 +572,9 @@ export function useAvailableMaps(): string[] {
           mapList = result.maps;
         } else if (result.data && Array.isArray(result.data)) {
           mapList = result.data;
+        } else if (typeof result?.message === 'string') {
+          // std_srvs/Trigger message payload
+          try { mapList = JSON.parse(result.message) } catch {}
         } else if (typeof result === 'string') {
           mapList = JSON.parse(result);
         }
