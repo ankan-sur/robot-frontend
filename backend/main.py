@@ -5,6 +5,7 @@ from typing import Dict, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import asyncio
 
 # DO NOT import rclpy or ros_interface.ros_node
 # ROS2 runs in Docker container, frontend connects via rosbridge
@@ -24,25 +25,25 @@ app.add_middleware(
 # Config path
 CONFIG_PATH = Path("/opt/robot/config.json")
 
+async def _check_tcp_port(host: str, port: int, timeout: float = 0.5) -> bool:
+    """Return True if a TCP connection can be established to host:port within timeout."""
+    try:
+        conn = asyncio.open_connection(host, port)
+        reader, writer = await asyncio.wait_for(conn, timeout=timeout)
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        return True
+    except Exception:
+        return False
+
 @app.get("/health")
 async def health() -> Dict[str, Any]:
     """Overall system health check."""
-    # Check if rosbridge is accessible (it doesn't have HTTP endpoint, but we can check port)
-    rosbridge_ok = False
-    try:
-        import httpx
-        # Try to connect to rosbridge port (will fail, but tells us if port is open)
-        async with httpx.AsyncClient() as client:
-            try:
-                await client.get("http://127.0.0.1:9090", timeout=0.5)
-            except (httpx.ConnectError, httpx.TimeoutException):
-                # Port exists but not HTTP - rosbridge is likely running
-                rosbridge_ok = True
-    except ImportError:
-        # httpx not available
-        pass
-    except Exception:
-        pass
+    # Check rosbridge via TCP connect (rosbridge is WebSocket, not HTTP)
+    rosbridge_ok = await _check_tcp_port("127.0.0.1", 9090, timeout=0.5)
     
     # Check video server
     video_ok = False
@@ -52,7 +53,8 @@ async def health() -> Dict[str, Any]:
             resp = await client.get("http://127.0.0.1:8080/stream_viewer", timeout=1.0)
             video_ok = resp.status_code == 200
     except Exception:
-        pass
+        # Fallback to simple TCP probe if HTTP probe fails
+        video_ok = await _check_tcp_port("127.0.0.1", 8080, timeout=0.5)
     
     return {
         "ok": True,

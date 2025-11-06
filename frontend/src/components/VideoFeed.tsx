@@ -3,7 +3,8 @@ import { ROS_CONFIG } from '../ros/config'
 
 export default function VideoFeed() {
   const [error, setError] = useState(false)
-  const streamUrl = `${ROS_CONFIG.videoBase}/stream?topic=${encodeURIComponent(ROS_CONFIG.topics.camera)}&type=webp`;
+  // Use MJPEG for broad compatibility with web_video_server
+  const streamUrl = `${ROS_CONFIG.videoBase}/stream?topic=${encodeURIComponent(ROS_CONFIG.topics.camera)}&type=mjpeg`;
   
   return (
     <section className="rounded-lg border-2 border-purple-400 bg-gradient-to-br from-white to-purple-50 p-4 shadow-lg">
