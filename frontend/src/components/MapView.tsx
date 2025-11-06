@@ -94,9 +94,9 @@ export function MapView({ position }: Props) {
 
   if (!map) {
     return (
-      <section className="rounded-lg border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-4 shadow-lg">
-        <h2 className="text-lg font-semibold mb-3 bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">Map</h2>
-        <div className="h-64 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg border-2 border-amber-300 flex items-center justify-center text-sm font-medium text-amber-800">
+      <section className="rounded-lg border-2 border-purple-400 bg-gradient-to-br from-white to-purple-50 p-4 shadow-lg">
+        <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Map</h2>
+        <div className="h-64 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg border-2 border-purple-300 flex items-center justify-center text-base font-medium text-purple-800">
           Waiting for map...
         </div>
       </section>
@@ -104,15 +104,15 @@ export function MapView({ position }: Props) {
   }
 
   return (
-    <section className="rounded-lg border-2 border-emerald-400 bg-gradient-to-br from-white to-emerald-50 p-4 shadow-lg">
-      <h2 className="text-lg font-semibold mb-3 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Navigation Map</h2>
-      <div className="h-96 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg border-2 border-emerald-300 overflow-hidden relative">
+    <section className="rounded-lg border-2 border-purple-400 bg-gradient-to-br from-white to-purple-50 p-4 shadow-lg">
+      <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Navigation Map</h2>
+      <div className="h-96 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border-2 border-purple-300 overflow-hidden relative">
         <canvas
           ref={canvasRef}
           className="w-full h-full object-contain"
           style={{ imageRendering: 'pixelated' }}
         />
-        <div className="absolute bottom-2 left-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs px-3 py-1.5 rounded-lg shadow-lg font-semibold">
+        <div className="absolute bottom-2 left-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg font-semibold">
           Pos: ({robotPos.x.toFixed(2)}, {robotPos.y.toFixed(2)})
         </div>
       </div>

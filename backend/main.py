@@ -82,6 +82,60 @@ async def put_config(config: Dict[str, Any]) -> Dict[str, Any]:
     CONFIG_PATH.write_text(json.dumps(config, indent=2))
     return {"ok": True}
 
+from fastapi.responses import StreamingResponse
+import asyncio
+from pathlib import Path
+
+@app.get("/logs/stream")
+async def stream_logs():
+    """Stream log file content (for live log viewing)."""
+    # Default log path - adjust as needed
+    LOG_PATH = Path("log.txt")
+    
+    # If log file doesn't exist, return empty
+    if not LOG_PATH.exists():
+        async def empty_stream():
+            yield "data: Log file not found\n\n"
+        return StreamingResponse(empty_stream(), media_type="text/event-stream")
+    
+    async def log_stream():
+        try:
+            # Read last 100 lines initially, then stream new lines
+            with open(LOG_PATH, 'r', encoding='utf-8', errors='ignore') as f:
+                # Read all lines
+                lines = f.readlines()
+                # Send last 100 lines
+                for line in lines[-100:]:
+                    yield f"data: {line}\n\n"
+                
+                # Watch for new lines
+                f.seek(0, 2)  # Seek to end
+                while True:
+                    line = f.readline()
+                    if line:
+                        yield f"data: {line}\n\n"
+                    else:
+                        await asyncio.sleep(0.1)  # Small delay when no new data
+        except Exception as e:
+            yield f"data: Error reading log: {str(e)}\n\n"
+    
+    return StreamingResponse(log_stream(), media_type="text/event-stream")
+
+@app.get("/logs")
+async def get_logs(limit: int = 500) -> Dict[str, Any]:
+    """Get recent log entries."""
+    LOG_PATH = Path("log.txt")
+    if not LOG_PATH.exists():
+        return {"logs": [], "error": "Log file not found"}
+    
+    try:
+        with open(LOG_PATH, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+            recent_lines = lines[-limit:] if len(lines) > limit else lines
+            return {"logs": recent_lines, "total_lines": len(lines)}
+    except Exception as e:
+        return {"logs": [], "error": str(e)}
+
 # Optional: If you want to keep the /move and /stop endpoints for backward compatibility,
 # you can use roslibpy to publish to /cmd_vel via rosbridge
 # For now, these are removed since frontend communicates directly with ROS

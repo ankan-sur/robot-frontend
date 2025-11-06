@@ -4,6 +4,7 @@ import VideoFeed from './components/VideoFeed'
 import { MapView } from './components/MapView'
 import { TelemetryPanel } from './components/TelemetryPanel'
 import { DebugPanel } from './components/DebugPanel'
+import { DebugLog } from './components/DebugLog'
 import { useRosConnection, useOdom, useCmdVel, useNavigateToPose, PointOfInterest } from './ros/hooks'
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
         <div className="lg:col-span-2 space-y-4">
           <MapView position={position} />
           <VideoFeed />
+          <DebugLog />
           <DebugPanel />
         </div>
         <div className="lg:col-span-1 space-y-4">
