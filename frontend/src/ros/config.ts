@@ -15,6 +15,12 @@ export const ROS_CONFIG = {
     button: '/ros_robot_controller/button',
     robotState: '/robot_state', // 'idle', 'responding_to_command', 'heading_to_charger'
     currentCommand: '/current_command', // Current destination/command info
+    // Optional UI/bridge topics (if your ui_bridge publishes these)
+    robotTelemetry: '/robot/telemetry',
+    robotLog: '/robot/log',
+    cmdFeedback: '/robot/cmd_feedback',
+    uiCmd: '/ui/cmd',
+    uiCancel: '/ui/cmd_cancel',
   },
   services: {
     changeMap: '/change_map',
@@ -26,7 +32,7 @@ export const ROS_CONFIG = {
   messageTypes: {
     cmdVel: 'geometry_msgs/Twist',
     odom: 'nav_msgs/Odometry',
-    battery: 'std_msgs/UInt16', // Battery topic uses UInt16
+    battery: 'std_msgs/UInt16', // Battery topic uses UInt16 (adjust if Float32)
     camera: 'sensor_msgs/Image',
     map: 'nav_msgs/OccupancyGrid',
     mapMetadata: 'nav_msgs/MapMetaData',
@@ -37,6 +43,12 @@ export const ROS_CONFIG = {
     button: 'std_msgs/Bool', // or UInt8, adjust based on actual type
     robotState: 'std_msgs/String', // Robot state string
     currentCommand: 'std_msgs/String', // Current command/destination info
+    // Optional UI/bridge message types
+    robotTelemetry: 'std_msgs/String',
+    robotLog: 'std_msgs/String',
+    cmdFeedback: 'std_msgs/String',
+    uiCmd: 'std_msgs/String',
+    uiCancel: 'std_msgs/String',
   }
 };
 

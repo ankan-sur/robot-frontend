@@ -38,3 +38,20 @@ export function onConnectionChange(callback: (state: ConnectionState) => void): 
   return () => listeners.delete(callback);
 }
 
+// Convenience topics map (optional): provides ready-to-use ROSLIB.Topic instances
+// Only use the ones that exist in your system; others will be harmless if unused.
+export const topics = {
+  // Core
+  cmdVel: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.cmdVel, messageType: ROS_CONFIG.messageTypes.cmdVel }),
+  odom: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.odom, messageType: ROS_CONFIG.messageTypes.odom }),
+  battery: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.battery, messageType: ROS_CONFIG.messageTypes.battery }),
+
+  // Optional UI bridge topics
+  robotState: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.robotState, messageType: ROS_CONFIG.messageTypes.robotState }),
+  currentCommand: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.currentCommand, messageType: ROS_CONFIG.messageTypes.currentCommand }),
+  robotTelemetry: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.robotTelemetry, messageType: ROS_CONFIG.messageTypes.robotTelemetry }),
+  robotLog: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.robotLog, messageType: ROS_CONFIG.messageTypes.robotLog }),
+  cmdFeedback: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.cmdFeedback, messageType: ROS_CONFIG.messageTypes.cmdFeedback }),
+  uiCmd: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.uiCmd, messageType: ROS_CONFIG.messageTypes.uiCmd }),
+  uiCancel: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.uiCancel, messageType: ROS_CONFIG.messageTypes.uiCancel }),
+};
