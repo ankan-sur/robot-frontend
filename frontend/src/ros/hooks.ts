@@ -71,9 +71,19 @@ export function useOdom() {
 
 export function useBattery() {
   const [battery, setBattery] = useState<number | null>(null);
+  const [connectionState, setConnectionState] = useState<ConnectionState>(getConnectionState());
+  
+  // Listen for connection changes
+  useEffect(() => {
+    const unsubscribe = onConnectionChange(setConnectionState);
+    return unsubscribe;
+  }, []);
   
   useEffect(() => {
-    if (getConnectionState() !== 'connected') return;
+    if (connectionState !== 'connected') {
+      setBattery(null);
+      return;
+    }
 
     const batteryTopic = new ROSLIB.Topic({
       ros,
@@ -82,10 +92,16 @@ export function useBattery() {
     });
     
     batteryTopic.subscribe((msg: any) => {
-      // Extract battery value - adjust based on actual message structure
-      const rawValue = msg.data ?? msg.percentage ?? msg.battery_level ?? null;
+      // Debug: log the message structure
+      console.log('Battery message received:', msg);
       
-      if (typeof rawValue === 'number') {
+      // Extract battery value - adjust based on actual message structure
+      // For std_msgs/UInt16, the data is typically in msg.data
+      const rawValue = msg.data ?? msg.percentage ?? msg.battery_level ?? msg.value ?? null;
+      
+      console.log('Raw battery value:', rawValue);
+      
+      if (typeof rawValue === 'number' && !isNaN(rawValue)) {
         // Convert millivolts to percentage
         // Assuming values are in millivolts (e.g., 8365 = 8.365V)
         // For a 2S LiPo: 6000mV (0%) to 8400mV (100%)
@@ -104,8 +120,10 @@ export function useBattery() {
           percentage = Math.max(0, Math.min(100, percentage));
         }
         
+        console.log('Converted battery percentage:', percentage);
         setBattery(percentage);
       } else {
+        console.warn('Invalid battery value:', rawValue);
         setBattery(null);
       }
     });
@@ -113,7 +131,7 @@ export function useBattery() {
     return () => {
       batteryTopic.unsubscribe();
     };
-  }, []);
+  }, [connectionState]);
   
   return battery;
 }
