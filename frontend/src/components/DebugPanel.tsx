@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { changeMap, useAvailableMaps } from '../ros/hooks'
+import { topics } from '../ros/ros'
 
 type Props = {
   onMapChange?: (mapName: string) => void
@@ -34,7 +35,12 @@ export function DebugPanel({ onMapChange }: Props) {
   return (
     <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
       <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Debug Panel</h2>
-      <div className="space-y-3">
+      <div className="space-y-4">
+        {/* Teleop (moved here for larger layout) */}
+        <div className="rounded-lg border-2 border-blue-300 bg-white p-4">
+          <div className="text-base font-medium text-blue-800 mb-3">Teleop</div>
+          <TeleopBlock />
+        </div>
         <div>
           <label className="block text-base font-medium text-blue-700 mb-2" htmlFor="map-select">
             Select Map
@@ -82,6 +88,41 @@ export function DebugPanel({ onMapChange }: Props) {
         </div>
       </div>
     </section>
+  )
+}
+
+function TeleopBlock() {
+  const [lin, setLin] = useState(0.3)
+  const [ang, setAng] = useState(1.0)
+  const held = useRef({ vx: 0, wz: 0 })
+
+  const publishTwist = () => topics.cmdVel.publish({
+    linear: { x: held.current.vx, y: 0, z: 0 },
+    angular: { x: 0, y: 0, z: held.current.wz },
+  } as any)
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-slate-600 w-20">Linear</label>
+          <input className="flex-1" type="range" min="0" max="1.5" step="0.05" value={lin} onChange={e => setLin(+e.target.value)} />
+          <div className="w-14 text-right font-mono text-sm text-slate-700">{lin.toFixed(2)}</div>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-slate-600 w-20">Angular</label>
+          <input className="flex-1" type="range" min="0" max="2.5" step="0.05" value={ang} onChange={e => setAng(+e.target.value)} />
+          <div className="w-14 text-right font-mono text-sm text-slate-700">{ang.toFixed(2)}</div>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200" onMouseDown={() => { held.current.vx = lin; publishTwist() }} onMouseUp={() => { held.current.vx = 0; publishTwist() }}>Fwd</button>
+        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200" onMouseDown={() => { held.current.vx = -lin; publishTwist() }} onMouseUp={() => { held.current.vx = 0; publishTwist() }}>Rev</button>
+        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200" onMouseDown={() => { held.current.wz = ang; publishTwist() }} onMouseUp={() => { held.current.wz = 0; publishTwist() }}>Left</button>
+        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200" onMouseDown={() => { held.current.wz = -ang; publishTwist() }} onMouseUp={() => { held.current.wz = 0; publishTwist() }}>Right</button>
+        <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200" onClick={() => { held.current = { vx: 0, wz: 0 }; publishTwist() }}>Stop</button>
+      </div>
+    </div>
   )
 }
 

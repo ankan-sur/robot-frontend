@@ -6,7 +6,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API
 type TabKey = 'backend' | 'robot' | 'feedback' | 'rosout'
 
 export function DebugLog() {
-  const [tab, setTab] = useState<TabKey>('backend')
+  const [tab, setTab] = useState<TabKey>('rosout')
   const [logs, setLogs] = useState<string[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -14,18 +14,19 @@ export function DebugLog() {
 
   // Hold current connections
   const eventSourceRef = useRef<EventSource | null>(null)
-  const rosCbRef = useRef<((m: any) => void) | null>(null)
+  const rosTopicRef = useRef<{ topic?: any; cb?: (m:any)=>void } | null>(null)
 
   useEffect(() => {
     // Cleanup previous
-    eventSourceRef.current?.close()
+    try { eventSourceRef.current?.close() } catch {}
     eventSourceRef.current = null
-    if (rosCbRef.current) {
-      topics.robotLog.unsubscribe(rosCbRef.current)
-      topics.cmdFeedback.unsubscribe(rosCbRef.current)
-      topics.rosout.unsubscribe(rosCbRef.current)
-      rosCbRef.current = null
-    }
+    // Unsubscribe from whichever ROS topic was active
+    try {
+      if (rosTopicRef.current?.topic && rosTopicRef.current?.cb) {
+        rosTopicRef.current.topic.unsubscribe(rosTopicRef.current.cb)
+      }
+    } catch {}
+    rosTopicRef.current = null
 
     setLogs([])
     setError(null)
@@ -63,11 +64,10 @@ export function DebugLog() {
       }
       add(line)
     }
-    rosCbRef.current = onMsg
     try {
-      if (tab === 'robot') topics.robotLog.subscribe(onMsg)
-      if (tab === 'feedback') topics.cmdFeedback.subscribe(onMsg)
-      if (tab === 'rosout') topics.rosout.subscribe(onMsg)
+      if (tab === 'robot') { topics.robotLog.subscribe(onMsg); rosTopicRef.current = { topic: topics.robotLog, cb: onMsg } }
+      if (tab === 'feedback') { topics.cmdFeedback.subscribe(onMsg); rosTopicRef.current = { topic: topics.cmdFeedback, cb: onMsg } }
+      if (tab === 'rosout') { topics.rosout.subscribe(onMsg); rosTopicRef.current = { topic: topics.rosout, cb: onMsg } }
       setIsConnected(true)
     } catch (e: any) {
       setError(e?.message || 'Failed to subscribe')
@@ -75,11 +75,12 @@ export function DebugLog() {
     }
 
     return () => {
-      if (rosCbRef.current) {
-        topics.robotLog.unsubscribe(rosCbRef.current)
-        topics.cmdFeedback.unsubscribe(rosCbRef.current)
-        topics.rosout.unsubscribe(rosCbRef.current)
-      }
+      try {
+        if (rosTopicRef.current?.topic && rosTopicRef.current?.cb) {
+          rosTopicRef.current.topic.unsubscribe(rosTopicRef.current.cb)
+        }
+      } catch {}
+      rosTopicRef.current = null
     }
   }, [tab])
 

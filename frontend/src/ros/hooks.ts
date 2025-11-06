@@ -85,11 +85,11 @@ export function useBattery() {
       return;
     }
 
+    // Avoid strict type to tolerate either UInt16 or Float32 publishers
     const batteryTopic = new ROSLIB.Topic({
       ros,
       name: ROS_CONFIG.topics.battery,
-      messageType: ROS_CONFIG.messageTypes.battery
-    });
+    } as any);
     
     batteryTopic.subscribe((msg: any) => {
       // Debug: log the message structure
@@ -248,7 +248,15 @@ export function useRobotState() {
     });
     
     stateTopic.subscribe((msg: any) => {
-      const stateStr = (msg.data ?? msg.state ?? '').toLowerCase().trim();
+      let stateStrRaw: any = msg?.data ?? msg?.state ?? '';
+      // Handle JSON string payloads like '{"state":"IDLE",...}'
+      if (typeof stateStrRaw === 'string' && stateStrRaw.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(stateStrRaw);
+          stateStrRaw = parsed?.state ?? stateStrRaw;
+        } catch {}
+      }
+      const stateStr = String(stateStrRaw).toLowerCase().trim();
       // Normalize state values
       if (stateStr === 'idle' || stateStr === 'idle_state') {
         setRobotState('idle');
