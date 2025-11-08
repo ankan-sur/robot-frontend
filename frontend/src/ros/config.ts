@@ -1,6 +1,6 @@
 export const ROS_CONFIG = {
-  rosbridgeUrl: import.meta.env.VITE_ROSBRIDGE_URL || 'ws://fordward.local:9090',
-  videoBase: import.meta.env.VITE_VIDEO_BASE || 'http://fordward.local:8080',
+  rosbridgeUrl: import.meta.env.VITE_ROSBRIDGE_URL || import.meta.env.VITE_ROSBRIDGE_FALLBACK_URL || 'ws://fordward.local:9090',
+  videoBase: import.meta.env.VITE_VIDEO_BASE || import.meta.env.VITE_VIDEO_FALLBACK_BASE || 'http://fordward.local:8080',
   topics: {
     cmdVel: '/cmd_vel',
     odom: '/odom',

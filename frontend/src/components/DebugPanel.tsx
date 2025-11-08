@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { changeMap, useAvailableMaps } from '../ros/hooks'
-import { topics } from '../ros/ros'
+import { TeleopBlock } from './TeleopBlock'
 
 type Props = {
   onMapChange?: (mapName: string) => void

@@ -85,7 +85,14 @@ export function DebugLog() {
   }, [tab])
 
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // Only smooth scroll if user is near bottom
+    const container = logEndRef.current?.parentElement;
+    if (container) {
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      if (isNearBottom) {
+        logEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
+    }
   }, [logs])
 
   const clearLogs = () => setLogs([])
