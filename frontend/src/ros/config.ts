@@ -1,6 +1,15 @@
+const defaultHost = typeof window !== 'undefined' && window.location?.hostname
+  ? window.location.hostname
+  : 'localhost';
+
+const defaultRosbridge = `ws://${defaultHost}:9090`;
+const defaultVideoBase = `http://${defaultHost}:8080`;
+const defaultRwtBase = `http://${defaultHost}:8001`;
+const defaultRosboard = `http://${defaultHost}:8081`;
+
 export const ROS_CONFIG = {
-  rosbridgeUrl: import.meta.env.VITE_ROSBRIDGE_URL || import.meta.env.VITE_ROSBRIDGE_FALLBACK_URL || 'ws://fordward.local:9090',
-  videoBase: import.meta.env.VITE_VIDEO_BASE || import.meta.env.VITE_VIDEO_FALLBACK_BASE || 'http://fordward.local:8080',
+  rosbridgeUrl: import.meta.env.VITE_ROSBRIDGE_URL || import.meta.env.VITE_ROSBRIDGE_FALLBACK_URL || defaultRosbridge,
+  videoBase: import.meta.env.VITE_VIDEO_BASE || import.meta.env.VITE_VIDEO_FALLBACK_BASE || defaultVideoBase,
   topics: {
     cmdVel: '/cmd_vel',
     odom: '/odom',
@@ -27,6 +36,13 @@ export const ROS_CONFIG = {
   },
   actions: {
     navigateToPose: '/navigate_to_pose',
+  },
+  rwt: {
+    map: import.meta.env.VITE_RWT_MAP_URL || `${import.meta.env.VITE_RWT_BASE || defaultRwtBase}/rwt/map`,
+    teleop: import.meta.env.VITE_RWT_TELEOP_URL || `${import.meta.env.VITE_RWT_BASE || defaultRwtBase}/rwt/teleop`,
+    image: import.meta.env.VITE_RWT_IMAGE_URL || `${import.meta.env.VITE_RWT_BASE || defaultRwtBase}/rwt/image`,
+    rosTool: import.meta.env.VITE_ROS_TOOL_URL || '',
+    rosboard: import.meta.env.VITE_ROSBOARD_URL || defaultRosboard,
   },
   messageTypes: {
     cmdVel: 'geometry_msgs/Twist',

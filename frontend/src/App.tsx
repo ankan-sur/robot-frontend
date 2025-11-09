@@ -5,12 +5,10 @@ import { MapView } from './components/MapView'
 import { TelemetryPanel } from './components/TelemetryPanel'
 import { DebugPanel } from './components/DebugPanel'
 import { DebugLog } from './components/DebugLog'
-import { SpatialView } from './components/SpatialView'
-import { useRosConnection, useOdom, useCmdVel, useNavigateToPose, PointOfInterest } from './ros/hooks'
+import { useRosConnection, useCmdVel, useNavigateToPose, PointOfInterest } from './ros/hooks'
 
 export default function App() {
   const { connected } = useRosConnection();
-  const odom = useOdom();
   const { stop } = useCmdVel();
   const { navigate } = useNavigateToPose();
 
@@ -35,8 +33,7 @@ export default function App() {
       <Header title="HFH Robot Dashboard" />
       <main className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
-          <MapView odom={odom} />
-          <SpatialView odom={odom} />
+          <MapView />
           <VideoFeed />
           <DebugLog />
           <DebugPanel />

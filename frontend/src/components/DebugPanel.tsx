@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { changeMap, useAvailableMaps } from '../ros/hooks'
-import { TeleopBlock } from './TeleopBlock'
+import { RwtPanel } from './RwtPanel'
+import { ROS_CONFIG } from '../ros/config'
 
 type Props = {
   onMapChange?: (mapName: string) => void
@@ -36,11 +37,12 @@ export function DebugPanel({ onMapChange }: Props) {
     <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
       <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Debug Panel</h2>
       <div className="space-y-4">
-        {/* Teleop (moved here for larger layout) */}
-        <div className="rounded-lg border-2 border-blue-300 bg-white p-4">
-          <div className="text-base font-medium text-blue-800 mb-3">Teleop</div>
-          <TeleopBlock />
-        </div>
+        <RwtPanel
+          title="Teleop"
+          src={ROS_CONFIG.rwt.teleop}
+          description="Expose visualization_rwt's teleop widget and set VITE_RWT_TELEOP_URL so the dashboard can embed it."
+          heightClass="h-80"
+        />
         <div>
           <label className="block text-base font-medium text-blue-700 mb-2" htmlFor="map-select">
             Select Map
@@ -83,12 +85,35 @@ export function DebugPanel({ onMapChange }: Props) {
             {status.text}
           </div>
         )}
-        <div className="text-sm text-blue-700 mt-2">
-          Maps from: <code className="bg-blue-100 px-2 py-0.5 rounded font-mono">ros2_ws/src/slam/maps</code>
+        <div className="text-sm text-blue-700 mt-2 space-y-2">
+          <div>
+            Maps from: <code className="bg-blue-100 px-2 py-0.5 rounded font-mono">ros2_ws/src/slam/maps</code>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {ROS_CONFIG.rwt.rosboard && (
+              <a
+                href={ROS_CONFIG.rwt.rosboard}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 text-sm rounded bg-slate-900 text-white hover:bg-slate-800"
+              >
+                Open Rosboard
+              </a>
+            )}
+            {ROS_CONFIG.rwt.rosTool && (
+              <a
+                href={ROS_CONFIG.rwt.rosTool}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 text-sm rounded bg-indigo-600 text-white hover:bg-indigo-500"
+              >
+                Open ROS Tool
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </section>
   )
 }
-
 

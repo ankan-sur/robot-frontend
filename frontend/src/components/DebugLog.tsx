@@ -3,10 +3,10 @@ import { topics } from '../ros/ros'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
-type TabKey = 'backend' | 'robot' | 'feedback' | 'rosout'
+type TabKey = 'rosout'
 
 export function DebugLog() {
-  const [tab, setTab] = useState<TabKey>('rosout')
+  const [tab] = useState<TabKey>('rosout')
   const [logs, setLogs] = useState<string[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,22 +32,6 @@ export function DebugLog() {
     setError(null)
     setIsConnected(false)
 
-    if (tab === 'backend') {
-      try {
-        const es = new EventSource(`${BACKEND_URL}/logs/stream`)
-        eventSourceRef.current = es
-        es.onopen = () => { setIsConnected(true); setError(null) }
-        es.onmessage = (event) => {
-          const line = event.data
-          if (line && line.trim() !== '') setLogs(prev => [...prev, line].slice(-1000))
-        }
-        es.onerror = (err) => { console.error('Log stream error:', err); setIsConnected(false); setError('Backend log stream unavailable') }
-      } catch (e: any) {
-        setError(e?.message || 'Failed to open backend EventSource')
-      }
-      return
-    }
-
     // ROS topic subscription for other tabs
     const add = (s: string) => setLogs(prev => [...prev, s].slice(-1000))
     const onMsg = (m: any) => {
@@ -65,9 +49,7 @@ export function DebugLog() {
       add(line)
     }
     try {
-      if (tab === 'robot') { topics.robotLog.subscribe(onMsg); rosTopicRef.current = { topic: topics.robotLog, cb: onMsg } }
-      if (tab === 'feedback') { topics.cmdFeedback.subscribe(onMsg); rosTopicRef.current = { topic: topics.cmdFeedback, cb: onMsg } }
-      if (tab === 'rosout') { topics.rosout.subscribe(onMsg); rosTopicRef.current = { topic: topics.rosout, cb: onMsg } }
+      topics.rosout.subscribe(onMsg); rosTopicRef.current = { topic: topics.rosout, cb: onMsg }
       setIsConnected(true)
     } catch (e: any) {
       setError(e?.message || 'Failed to subscribe')
@@ -108,12 +90,8 @@ export function DebugLog() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-2 mb-3">
-        <TabButton active={tab==='backend'} onClick={()=>setTab('backend')}>Backend</TabButton>
-        <TabButton active={tab==='robot'} onClick={()=>setTab('robot')}>Robot Log</TabButton>
-        <TabButton active={tab==='feedback'} onClick={()=>setTab('feedback')}>Feedback</TabButton>
-        <TabButton active={tab==='rosout'} onClick={()=>setTab('rosout')}>Rosout</TabButton>
+        <TabButton active>{'Rosout'}</TabButton>
       </div>
 
       {error && (<div className="mb-2 p-2 text-sm text-red-700 bg-red-50 rounded border border-red-200">{error}</div>)}
@@ -134,14 +112,10 @@ export function DebugLog() {
   )
 }
 
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: any }) {
+function TabButton({ active, children }: { active: boolean; children: any }) {
   return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1.5 text-xs rounded border ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'}`}
-    >
+    <div className={`px-3 py-1.5 text-xs rounded border ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-300'}`}>
       {children}
-    </button>
+    </div>
   )
 }
-
