@@ -5,6 +5,7 @@ import { MapView } from './components/MapView'
 import { TelemetryPanel } from './components/TelemetryPanel'
 import { DebugPanel } from './components/DebugPanel'
 import { DebugLog } from './components/DebugLog'
+import { SpatialView } from './components/SpatialView'
 import { useRosConnection, useOdom, useCmdVel, useNavigateToPose, PointOfInterest } from './ros/hooks'
 
 export default function App() {
@@ -12,9 +13,6 @@ export default function App() {
   const odom = useOdom();
   const { stop } = useCmdVel();
   const { navigate } = useNavigateToPose();
-
-  // Extract position from odometry
-  const position = odom?.pose.pose.position || { x: 0, y: 0, z: 0 };
 
   // Navigate to POI using Nav2
   const goToLab = async (poi: PointOfInterest) => {
@@ -37,7 +35,8 @@ export default function App() {
       <Header title="HFH Robot Dashboard" />
       <main className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
-          <MapView position={position} />
+          <MapView odom={odom} />
+          <SpatialView odom={odom} />
           <VideoFeed />
           <DebugLog />
           <DebugPanel />
