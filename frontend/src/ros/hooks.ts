@@ -32,6 +32,17 @@ export function useRosConnection() {
   return { state, latency, connected: state === 'connected' };
 }
 
+function useConnectionWatcher() {
+  const [connectionState, setConnectionState] = useState<ConnectionState>(getConnectionState());
+
+  useEffect(() => {
+    const unsubscribe = onConnectionChange(setConnectionState);
+    return unsubscribe;
+  }, []);
+
+  return connectionState;
+}
+
 export interface Odometry {
   pose: {
     pose: {
@@ -47,92 +58,70 @@ export interface Odometry {
 
 export function useOdom() {
   const [odom, setOdom] = useState<Odometry | null>(null);
+  const connectionState = useConnectionWatcher();
   
   useEffect(() => {
-    if (getConnectionState() !== 'connected') return;
+    if (connectionState !== 'connected') {
+      setOdom(null);
+      return;
+    }
 
     const odomTopic = new ROSLIB.Topic({
       ros,
       name: ROS_CONFIG.topics.odom,
       messageType: ROS_CONFIG.messageTypes.odom
     });
-    
-    odomTopic.subscribe((msg: Odometry) => {
-      setOdom(msg);
-    });
+
+    const handleMessage = (msg: Odometry) => setOdom(msg);
+    odomTopic.subscribe(handleMessage);
     
     return () => {
-      odomTopic.unsubscribe();
+      odomTopic.unsubscribe(handleMessage);
     };
-  }, []);
+  }, [connectionState]);
   
   return odom;
 }
 
 export function useBattery() {
   const [battery, setBattery] = useState<number | null>(null);
-  const [connectionState, setConnectionState] = useState<ConnectionState>(getConnectionState());
-  
-  // Listen for connection changes
-  useEffect(() => {
-    const unsubscribe = onConnectionChange(setConnectionState);
-    return unsubscribe;
-  }, []);
-  
+  const connectionState = useConnectionWatcher();
+
   useEffect(() => {
     if (connectionState !== 'connected') {
       setBattery(null);
       return;
     }
 
-    // Avoid strict type to tolerate either UInt16 or Float32 publishers
     const batteryTopic = new ROSLIB.Topic({
       ros,
       name: ROS_CONFIG.topics.battery,
     } as any);
-    
-    batteryTopic.subscribe((msg: any) => {
-      // Debug: log the message structure
-      console.log('Battery message received:', msg);
-      
-      // Extract battery value - adjust based on actual message structure
-      // For std_msgs/UInt16, the data is typically in msg.data
+
+    const handleMessage = (msg: any) => {
       const rawValue = msg.data ?? msg.percentage ?? msg.battery_level ?? msg.value ?? null;
-      
-      console.log('Raw battery value:', rawValue);
-      
+
       if (typeof rawValue === 'number' && !isNaN(rawValue)) {
-        // Convert millivolts to percentage
-        // Assuming values are in millivolts (e.g., 8365 = 8.365V)
-        // For a 2S LiPo: 6000mV (0%) to 8400mV (100%)
-        const MIN_VOLTAGE_MV = 6000;  // Empty battery
-        const MAX_VOLTAGE_MV = 8400;  // Fully charged battery
-        
-        let percentage: number;
-        
-        // If value is already in percentage range (0-100), use as-is
-        if (rawValue >= 0 && rawValue <= 100) {
-          percentage = rawValue;
-        } else {
-          // Otherwise, assume it's millivolts and convert to percentage
-          percentage = ((rawValue - MIN_VOLTAGE_MV) / (MAX_VOLTAGE_MV - MIN_VOLTAGE_MV)) * 100;
-          // Clamp between 0 and 100
-          percentage = Math.max(0, Math.min(100, percentage));
-        }
-        
-        console.log('Converted battery percentage:', percentage);
+        const MIN_VOLTAGE_MV = 6000;
+        const MAX_VOLTAGE_MV = 8400;
+
+        const percentage = rawValue >= 0 && rawValue <= 100
+          ? rawValue
+          : Math.max(0, Math.min(100, ((rawValue - MIN_VOLTAGE_MV) / (MAX_VOLTAGE_MV - MIN_VOLTAGE_MV)) * 100));
+
         setBattery(percentage);
       } else {
-        console.warn('Invalid battery value:', rawValue);
         setBattery(null);
       }
-    });
-    
+    };
+
+    batteryTopic.subscribe(handleMessage);
+
     return () => {
-      batteryTopic.unsubscribe();
+      batteryTopic.unsubscribe(handleMessage);
     };
   }, [connectionState]);
-  
+
   return battery;
 }
 
@@ -144,9 +133,13 @@ export interface IMURPY {
 
 export function useIMURPY() {
   const [rpy, setRpy] = useState<IMURPY | null>(null);
+  const connectionState = useConnectionWatcher();
   
   useEffect(() => {
-    if (getConnectionState() !== 'connected') return;
+    if (connectionState !== 'connected') {
+      setRpy(null);
+      return;
+    }
 
     const imuTopic = new ROSLIB.Topic({
       ros,
@@ -154,18 +147,19 @@ export function useIMURPY() {
       messageType: ROS_CONFIG.messageTypes.imuRpy
     });
     
-    imuTopic.subscribe((msg: any) => {
-      // geometry_msgs/Vector3 has x, y, z fields
+    const handleMessage = (msg: any) => {
       const roll = msg.x ?? msg.roll ?? 0;
       const pitch = msg.y ?? msg.pitch ?? 0;
       const yaw = msg.z ?? msg.yaw ?? 0;
       setRpy({ x: roll, y: pitch, z: yaw });
-    });
+    };
+
+    imuTopic.subscribe(handleMessage);
     
     return () => {
-      imuTopic.unsubscribe();
+      imuTopic.unsubscribe(handleMessage);
     };
-  }, []);
+  }, [connectionState]);
   
   return rpy;
 }
@@ -179,9 +173,13 @@ export interface JointState {
 
 export function useJointStates() {
   const [jointStates, setJointStates] = useState<JointState | null>(null);
+  const connectionState = useConnectionWatcher();
   
   useEffect(() => {
-    if (getConnectionState() !== 'connected') return;
+    if (connectionState !== 'connected') {
+      setJointStates(null);
+      return;
+    }
 
     const jointTopic = new ROSLIB.Topic({
       ros,
@@ -189,29 +187,34 @@ export function useJointStates() {
       messageType: ROS_CONFIG.messageTypes.jointStates
     });
     
-    jointTopic.subscribe((msg: any) => {
-      // sensor_msgs/JointState structure
+    const handleMessage = (msg: any) => {
       setJointStates({
         name: msg.name || [],
         position: msg.position || [],
         velocity: msg.velocity || [],
         effort: msg.effort || []
       });
-    });
+    };
+
+    jointTopic.subscribe(handleMessage);
     
     return () => {
-      jointTopic.unsubscribe();
+      jointTopic.unsubscribe(handleMessage);
     };
-  }, []);
+  }, [connectionState]);
   
   return jointStates;
 }
 
 export function useButton() {
   const [buttonPressed, setButtonPressed] = useState<boolean | null>(null);
+  const connectionState = useConnectionWatcher();
   
   useEffect(() => {
-    if (getConnectionState() !== 'connected') return;
+    if (connectionState !== 'connected') {
+      setButtonPressed(null);
+      return;
+    }
 
     const buttonTopic = new ROSLIB.Topic({
       ros,
@@ -219,16 +222,17 @@ export function useButton() {
       messageType: ROS_CONFIG.messageTypes.button
     });
     
-    buttonTopic.subscribe((msg: any) => {
-      // Could be std_msgs/Bool or std_msgs/UInt8
+    const handleMessage = (msg: any) => {
       const value = msg.data ?? msg.value ?? false;
       setButtonPressed(Boolean(value));
-    });
+    };
+
+    buttonTopic.subscribe(handleMessage);
     
     return () => {
-      buttonTopic.unsubscribe();
+      buttonTopic.unsubscribe(handleMessage);
     };
-  }, []);
+  }, [connectionState]);
   
   return buttonPressed;
 }
@@ -237,9 +241,13 @@ export type RobotState = 'idle' | 'responding_to_command' | 'heading_to_charger'
 
 export function useRobotState() {
   const [robotState, setRobotState] = useState<RobotState | null>(null);
+  const connectionState = useConnectionWatcher();
   
   useEffect(() => {
-    if (getConnectionState() !== 'connected') return;
+    if (connectionState !== 'connected') {
+      setRobotState(null);
+      return;
+    }
 
     const stateTopic = new ROSLIB.Topic({
       ros,
@@ -247,9 +255,8 @@ export function useRobotState() {
       messageType: ROS_CONFIG.messageTypes.robotState
     });
     
-    stateTopic.subscribe((msg: any) => {
+    const handleMessage = (msg: any) => {
       let stateStrRaw: any = msg?.data ?? msg?.state ?? '';
-      // Handle JSON string payloads like '{"state":"IDLE",...}'
       if (typeof stateStrRaw === 'string' && stateStrRaw.trim().startsWith('{')) {
         try {
           const parsed = JSON.parse(stateStrRaw);
@@ -257,7 +264,6 @@ export function useRobotState() {
         } catch {}
       }
       const stateStr = String(stateStrRaw).toLowerCase().trim();
-      // Normalize state values
       if (stateStr === 'idle' || stateStr === 'idle_state') {
         setRobotState('idle');
       } else if (stateStr === 'responding_to_command' || stateStr === 'responding' || stateStr === 'executing_command') {
@@ -265,42 +271,18 @@ export function useRobotState() {
       } else if (stateStr === 'heading_to_charger' || stateStr === 'charging' || stateStr === 'going_to_charger') {
         setRobotState('heading_to_charger');
       } else {
-        // Default to idle if unknown
-        setRobotState('idle');
+        setRobotState(null);
       }
-    });
+    };
+
+    stateTopic.subscribe(handleMessage);
     
     return () => {
-      stateTopic.unsubscribe();
+      stateTopic.unsubscribe(handleMessage);
     };
-  }, []);
+  }, [connectionState]);
   
   return robotState;
-}
-
-export function useCurrentCommand() {
-  const [currentCommand, setCurrentCommand] = useState<string | null>(null);
-  
-  useEffect(() => {
-    if (getConnectionState() !== 'connected') return;
-
-    const commandTopic = new ROSLIB.Topic({
-      ros,
-      name: ROS_CONFIG.topics.currentCommand,
-      messageType: ROS_CONFIG.messageTypes.currentCommand
-    });
-    
-    commandTopic.subscribe((msg: any) => {
-      const command = msg.data ?? msg.command ?? msg.destination ?? null;
-      setCurrentCommand(typeof command === 'string' ? command : null);
-    });
-    
-    return () => {
-      commandTopic.unsubscribe();
-    };
-  }, []);
-  
-  return currentCommand;
 }
 
 export function useCmdVel() {
@@ -308,16 +290,31 @@ export function useCmdVel() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   useEffect(() => {
-    if (getConnectionState() !== 'connected') return;
+    const handleConnectionChange = (state: ConnectionState) => {
+      if (state === 'connected') {
+        cmdVelRef.current = new ROSLIB.Topic({
+          ros,
+          name: ROS_CONFIG.topics.cmdVel,
+          messageType: ROS_CONFIG.messageTypes.cmdVel
+        });
+      } else {
+        cmdVelRef.current = null;
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+      }
+    };
 
-    cmdVelRef.current = new ROSLIB.Topic({
-      ros,
-      name: ROS_CONFIG.topics.cmdVel,
-      messageType: ROS_CONFIG.messageTypes.cmdVel
-    });
+    handleConnectionChange(getConnectionState());
+    const unsubscribe = onConnectionChange(handleConnectionChange);
 
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      unsubscribe();
+      cmdVelRef.current = null;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
   }, []);
   
@@ -376,9 +373,13 @@ export interface OccupancyGrid {
 
 export function useMap() {
   const [map, setMap] = useState<OccupancyGrid | null>(null);
+  const connectionState = useConnectionWatcher();
   
   useEffect(() => {
-    if (getConnectionState() !== 'connected') return;
+    if (connectionState !== 'connected') {
+      setMap(null);
+      return;
+    }
 
     const mapTopic = new ROSLIB.Topic({
       ros,
@@ -386,14 +387,16 @@ export function useMap() {
       messageType: ROS_CONFIG.messageTypes.map
     });
     
-    mapTopic.subscribe((msg: OccupancyGrid) => {
+    const handleMessage = (msg: OccupancyGrid) => {
       setMap(msg);
-    });
+    };
+
+    mapTopic.subscribe(handleMessage);
     
     return () => {
-      mapTopic.unsubscribe();
+      mapTopic.unsubscribe(handleMessage);
     };
-  }, []);
+  }, [connectionState]);
   
   return map;
 }
@@ -408,9 +411,10 @@ export interface PointOfInterest {
 // Fetch POIs from ROS topic
 export function usePointsOfInterest(): PointOfInterest[] {
   const [pois, setPois] = useState<PointOfInterest[]>([]);
+  const connectionState = useConnectionWatcher();
 
   useEffect(() => {
-    if (getConnectionState() !== 'connected') {
+    if (connectionState !== 'connected') {
       setPois([]);
       return;
     }
@@ -421,12 +425,9 @@ export function usePointsOfInterest(): PointOfInterest[] {
       messageType: ROS_CONFIG.messageTypes.pois || 'std_msgs/String'
     });
     
-    poisTopic.subscribe((msg: any) => {
+    const handleMessage = (msg: any) => {
       try {
-        // Parse POIs from message - adjust based on actual message structure
-        // Could be JSON string, or structured message
         let parsed: PointOfInterest[] = [];
-        
         if (typeof msg === 'string') {
           parsed = JSON.parse(msg);
         } else if (msg.data) {
@@ -436,7 +437,7 @@ export function usePointsOfInterest(): PointOfInterest[] {
         } else if (Array.isArray(msg)) {
           parsed = msg;
         }
-        
+
         if (Array.isArray(parsed)) {
           setPois(parsed);
         }
@@ -444,12 +445,14 @@ export function usePointsOfInterest(): PointOfInterest[] {
         console.error('Failed to parse POIs:', error);
         setPois([]);
       }
-    });
+    };
+
+    poisTopic.subscribe(handleMessage);
     
     return () => {
-      poisTopic.unsubscribe();
+      poisTopic.unsubscribe(handleMessage);
     };
-  }, []);
+  }, [connectionState]);
 
   return pois;
 }
@@ -547,75 +550,81 @@ export function changeMap(mapName: string): Promise<void> {
 // Fetch available maps from ROS service
 export function useAvailableMaps(): string[] {
   const [maps, setMaps] = useState<string[]>([]);
+  const connectionState = useConnectionWatcher();
 
   useEffect(() => {
-    if (getConnectionState() !== 'connected') {
+    if (connectionState !== 'connected') {
       setMaps([]);
       return;
     }
 
-    // Try to call list_maps service
+    let cancelled = false;
+
+    const pushMaps = (list: unknown) => {
+      if (!Array.isArray(list)) return;
+      if (!cancelled) {
+        setMaps(list as string[]);
+      }
+    };
+
     const service = new ROSLIB.Service({
       ros,
       name: ROS_CONFIG.services.listMaps,
-      serviceType: 'std_srvs/Trigger' // Returns { success: bool, message: string }
+      serviceType: 'std_srvs/Trigger'
     });
 
     const request = new ROSLIB.ServiceRequest({});
 
     service.callService(request, (result: any) => {
       try {
-        // Parse maps from result - adjust based on actual service response
-        let mapList: string[] = [];
-        
-        if (result.maps && Array.isArray(result.maps)) {
-          mapList = result.maps;
-        } else if (result.data && Array.isArray(result.data)) {
-          mapList = result.data;
-        } else if (typeof result?.message === 'string') {
-          // std_srvs/Trigger message payload
-          try { mapList = JSON.parse(result.message) } catch {}
-        } else if (typeof result === 'string') {
-          mapList = JSON.parse(result);
+        if (Array.isArray(result?.maps)) {
+          pushMaps(result.maps);
+          return;
         }
-        
-        if (Array.isArray(mapList)) {
-          setMaps(mapList);
+        if (Array.isArray(result?.data)) {
+          pushMaps(result.data);
+          return;
+        }
+        if (typeof result?.message === 'string') {
+          pushMaps(JSON.parse(result.message));
+          return;
+        }
+        if (typeof result === 'string') {
+          pushMaps(JSON.parse(result));
         }
       } catch (error) {
         console.error('Failed to parse maps list:', error);
-        setMaps([]);
+        if (!cancelled) setMaps([]);
       }
     }, (error: any) => {
       console.error('Failed to list maps:', error);
-      setMaps([]);
+      if (!cancelled) setMaps([]);
     });
 
-    // Also try subscribing to a topic if available
     const mapsTopic = new ROSLIB.Topic({
       ros,
       name: '/available_maps',
       messageType: 'std_msgs/String'
     });
 
-    mapsTopic.subscribe((msg: any) => {
+    const handleTopic = (msg: any) => {
       try {
-        const mapList = typeof msg === 'string' 
-          ? JSON.parse(msg) 
-          : (msg.data ? JSON.parse(msg.data) : []);
-        if (Array.isArray(mapList)) {
-          setMaps(mapList);
-        }
+        const parsed = typeof msg === 'string'
+          ? JSON.parse(msg)
+          : (msg?.data ? JSON.parse(msg.data) : []);
+        pushMaps(parsed);
       } catch (error) {
         console.error('Failed to parse maps from topic:', error);
       }
-    });
+    };
+
+    mapsTopic.subscribe(handleTopic);
 
     return () => {
-      mapsTopic.unsubscribe();
+      cancelled = true;
+      mapsTopic.unsubscribe(handleTopic);
     };
-  }, []);
+  }, [connectionState]);
 
   return maps;
 }
-

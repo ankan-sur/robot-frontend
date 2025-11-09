@@ -1,10 +1,12 @@
 import { useRef, useState, useEffect } from 'react';
 import { topics } from '../ros/ros';
+import { useRosConnection } from '../ros/hooks';
 
 export function TeleopBlock() {
   const [lin, setLin] = useState(0.3);
   const [ang, setAng] = useState(1.0);
   const [interfaceType, setInterfaceType] = useState<'buttons' | 'joystick'>('buttons');
+  const { connected } = useRosConnection();
   const held = useRef({ vx: 0, wz: 0 });
   const intervalRef = useRef<number | null>(null);
   const joystickRef = useRef<HTMLDivElement>(null);
@@ -14,13 +16,18 @@ export function TeleopBlock() {
   const MAX_LINEAR = 3.5;
   const MAX_ANGULAR = 3.5;
 
-  const publishTwist = () => topics.cmdVel.publish({
-    linear: { x: held.current.vx, y: 0, z: 0 },
-    angular: { x: 0, y: 0, z: held.current.wz },
-  } as any);
+  const teleopEnabled = connected;
+
+  const publishTwist = () => {
+    if (!teleopEnabled) return;
+    topics.cmdVel.publish({
+      linear: { x: held.current.vx, y: 0, z: 0 },
+      angular: { x: 0, y: 0, z: held.current.wz },
+    } as any);
+  };
 
   const startLoop = () => {
-    if (intervalRef.current != null) return;
+    if (!teleopEnabled || intervalRef.current != null) return;
     intervalRef.current = window.setInterval(() => {
       publishTwist();
     }, 50);
@@ -35,6 +42,7 @@ export function TeleopBlock() {
 
   // Joystick handlers
   const handleJoystickStart = (e: MouseEvent | TouchEvent) => {
+    if (!teleopEnabled) return;
     const pos = 'touches' in e ? e.touches[0] : e;
     const rect = joystickRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -45,7 +53,7 @@ export function TeleopBlock() {
   };
 
   const handleJoystickMove = (e: MouseEvent | TouchEvent) => {
-    if (!isDraggingRef.current || !joystickRef.current) return;
+    if (!isDraggingRef.current || !joystickRef.current || !teleopEnabled) return;
     
     const pos = 'touches' in e ? e.touches[0] : e;
     const rect = joystickRef.current.getBoundingClientRect();
@@ -64,6 +72,7 @@ export function TeleopBlock() {
   };
 
   const handleJoystickEnd = () => {
+    if (!teleopEnabled) return;
     isDraggingRef.current = false;
     held.current = { vx: 0, wz: 0 };
     publishTwist();
@@ -71,7 +80,7 @@ export function TeleopBlock() {
   };
 
   useEffect(() => {
-    if (interfaceType === 'joystick' && joystickRef.current) {
+    if (interfaceType === 'joystick' && joystickRef.current && teleopEnabled) {
       const el = joystickRef.current;
       
       el.addEventListener('mousedown', handleJoystickStart);
@@ -90,7 +99,20 @@ export function TeleopBlock() {
         window.removeEventListener('touchend', handleJoystickEnd);
       };
     }
-  }, [interfaceType]);
+  }, [interfaceType, teleopEnabled]);
+
+  useEffect(() => {
+    if (!teleopEnabled && intervalRef.current != null) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+      held.current = { vx: 0, wz: 0 };
+    }
+  }, [teleopEnabled]);
+
+  const guard = (fn: () => void) => () => {
+    if (!teleopEnabled) return;
+    fn();
+  };
 
   return (
     <div className="space-y-3">
@@ -149,41 +171,46 @@ export function TeleopBlock() {
 
       {interfaceType === 'buttons' ? (
         <div className="flex flex-wrap gap-2">
-          <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200"
-            onMouseDown={() => { held.current.vx = lin; startLoop(); }}
-            onMouseUp={() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle(); }}
-            onTouchStart={(e) => { e.preventDefault(); held.current.vx = lin; startLoop(); }}
-            onTouchEnd={(e) => { e.preventDefault(); held.current.vx = 0; publishTwist(); stopLoopIfIdle(); }}
+          <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-50"
+            disabled={!teleopEnabled}
+            onMouseDown={guard(() => { held.current.vx = lin; startLoop(); })}
+            onMouseUp={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle(); })}
+            onTouchStart={(e) => { e.preventDefault(); guard(() => { held.current.vx = lin; startLoop(); })(); }}
+            onTouchEnd={(e) => { e.preventDefault(); guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle(); })(); }}
           >Forward</button>
-          <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200"
-            onMouseDown={() => { held.current.vx = -lin; startLoop(); }}
-            onMouseUp={() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle(); }}
-            onTouchStart={(e) => { e.preventDefault(); held.current.vx = -lin; startLoop(); }}
-            onTouchEnd={(e) => { e.preventDefault(); held.current.vx = 0; publishTwist(); stopLoopIfIdle(); }}
+          <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-50"
+            disabled={!teleopEnabled}
+            onMouseDown={guard(() => { held.current.vx = -lin; startLoop(); })}
+            onMouseUp={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle(); })}
+            onTouchStart={(e) => { e.preventDefault(); guard(() => { held.current.vx = -lin; startLoop(); })(); }}
+            onTouchEnd={(e) => { e.preventDefault(); guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle(); })(); }}
           >Back</button>
-          <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200"
-            onMouseDown={() => { held.current.wz = ang; startLoop(); }}
-            onMouseUp={() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle(); }}
-            onTouchStart={(e) => { e.preventDefault(); held.current.wz = ang; startLoop(); }}
-            onTouchEnd={(e) => { e.preventDefault(); held.current.wz = 0; publishTwist(); stopLoopIfIdle(); }}
+          <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-50"
+            disabled={!teleopEnabled}
+            onMouseDown={guard(() => { held.current.wz = ang; startLoop(); })}
+            onMouseUp={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle(); })}
+            onTouchStart={(e) => { e.preventDefault(); guard(() => { held.current.wz = ang; startLoop(); })(); }}
+            onTouchEnd={(e) => { e.preventDefault(); guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle(); })(); }}
           >Left</button>
-          <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200"
-            onMouseDown={() => { held.current.wz = -ang; startLoop(); }}
-            onMouseUp={() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle(); }}
-            onTouchStart={(e) => { e.preventDefault(); held.current.wz = -ang; startLoop(); }}
-            onTouchEnd={(e) => { e.preventDefault(); held.current.wz = 0; publishTwist(); stopLoopIfIdle(); }}
+          <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-50"
+            disabled={!teleopEnabled}
+            onMouseDown={guard(() => { held.current.wz = -ang; startLoop(); })}
+            onMouseUp={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle(); })}
+            onTouchStart={(e) => { e.preventDefault(); guard(() => { held.current.wz = -ang; startLoop(); })(); }}
+            onTouchEnd={(e) => { e.preventDefault(); guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle(); })(); }}
           >Right</button>
-          <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200"
-            onClick={() => { held.current = { vx: 0, wz: 0 }; publishTwist(); stopLoopIfIdle(); }}
+          <button className="px-4 py-2 border rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-50"
+            disabled={!teleopEnabled}
+            onClick={guard(() => { held.current = { vx: 0, wz: 0 }; publishTwist(); stopLoopIfIdle(); })}
           >Stop</button>
         </div>
       ) : (
         <div 
           ref={joystickRef}
-          className="w-48 h-48 mx-auto bg-slate-100 rounded-full border-4 border-blue-300 relative cursor-pointer touch-none"
+          className={`w-48 h-48 mx-auto bg-slate-100 rounded-full border-4 border-blue-300 relative touch-none ${teleopEnabled ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
         >
           <div className="absolute inset-0 flex items-center justify-center text-blue-400 pointer-events-none">
-            Drag here
+            {teleopEnabled ? 'Drag here' : 'Connect to enable teleop'}
           </div>
           {isDraggingRef.current && (
             <div className="absolute inset-0 flex items-center justify-center">

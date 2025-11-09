@@ -1,6 +1,4 @@
-import { useRosConnection, useBattery, useOdom, useIMURPY, useButton, useRobotState, useCurrentCommand } from '../ros/hooks'
-import { useRosStringJSON } from '../hooks/useRosTopic'
-import { topics } from '../ros/ros'
+import { useRosConnection, useBattery, useOdom, useIMURPY, useButton, useRobotState } from '../ros/hooks'
 
 export function TelemetryPanel() {
   const { connected, state, latency } = useRosConnection()
@@ -9,15 +7,7 @@ export function TelemetryPanel() {
   const imuRpy = useIMURPY()
   const buttonPressed = useButton()
   const robotState = useRobotState()
-  const currentCommand = useCurrentCommand()
-
-  // Optional aggregated telemetry from bridge
-  const tel = useRosStringJSON(topics.robotTelemetry) as { battery?: number; pose_map?: { x: number; y: number } } | null
-
-  const positionFromOdom = odom?.pose?.pose?.position || { x: 0, y: 0, z: 0 }
-  const position = (tel?.pose_map && Number.isFinite(tel.pose_map.x) && Number.isFinite(tel.pose_map.y))
-    ? { x: tel.pose_map.x, y: tel.pose_map.y, z: 0 }
-    : positionFromOdom
+  const position = odom?.pose?.pose?.position || { x: 0, y: 0, z: 0 }
 
   const velocity = (odom?.twist as any)?.twist?.linear || (odom?.twist as any)?.linear || { x: 0, y: 0, z: 0 }
   const angularVel = (odom?.twist as any)?.twist?.angular || (odom?.twist as any)?.angular || { x: 0, y: 0, z: 0 }
@@ -55,14 +45,15 @@ export function TelemetryPanel() {
             <div className="flex items-center gap-2">
               <span className={`w-3 h-3 rounded-full ${stateDisplay.color} ${robotState ? 'animate-pulse' : ''}`}></span>
               <span className={`text-base font-semibold ${stateDisplay.textColor}`}>
-                {robotState ? stateDisplay.text : '—'}
+                {robotState ? stateDisplay.text : 'Signal unavailable'}
               </span>
             </div>
           </div>
-          <div className={`text-sm ${stateDisplay.textColor} mt-2 pt-2 border-t ${stateDisplay.border}`}>
-            <span className="font-medium">Current Command: </span>
-            <span className="font-mono">{currentCommand || '—'}</span>
-          </div>
+          {!robotState && (
+            <div className={`text-sm ${stateDisplay.textColor} mt-2 pt-2 border-t ${stateDisplay.border}`}>
+              Waiting for /robot/state …
+            </div>
+          )}
         </div>
 
         {/* Connection */}

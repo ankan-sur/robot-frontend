@@ -14,9 +14,7 @@ export const ROS_CONFIG = {
     diagnostics: '/diagnostics',
     button: '/ros_robot_controller/button',
     robotState: '/robot/state', // 'idle', 'responding_to_command', 'heading_to_charger'
-    currentCommand: '/current_command', // Current destination/command info
     // Optional UI/bridge topics (if your ui_bridge publishes these)
-    robotTelemetry: '/robot/telemetry',
     robotLog: '/robot/log',
     cmdFeedback: '/robot/cmd_feedback',
     uiCmd: '/ui/cmd',
@@ -43,9 +41,7 @@ export const ROS_CONFIG = {
     diagnostics: 'diagnostic_msgs/DiagnosticArray',
     button: 'std_msgs/Bool', // or UInt8, adjust based on actual type
     robotState: 'std_msgs/String', // Robot state string
-    currentCommand: 'std_msgs/String', // Current command/destination info
     // Optional UI/bridge message types
-    robotTelemetry: 'std_msgs/String',
     robotLog: 'std_msgs/String',
     cmdFeedback: 'std_msgs/String',
     uiCmd: 'std_msgs/String',
@@ -53,4 +49,3 @@ export const ROS_CONFIG = {
     rosout: 'rcl_interfaces/Log',
   }
 };
-

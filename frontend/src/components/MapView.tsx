@@ -9,46 +9,46 @@ export function MapView({ position }: Props) {
   const map = useMap()
   const odom = useOdom()
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const cachedMapRef = useRef<HTMLCanvasElement | null>(null)
 
   const robotPos = position || odom?.pose.pose.position || { x: 0, y: 0, z: 0 }
   const robotOri = odom?.pose.pose.orientation || { x: 0, y: 0, z: 0, w: 1 }
+  const posX = robotPos.x
+  const posY = robotPos.y
+  const oriZ = robotOri.z
+  const oriW = robotOri.w
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas || !map) return
+    if (!map) {
+      cachedMapRef.current = null
+      return
+    }
 
-    const ctx = canvas.getContext('2d')
+    const { width, height } = map.info
+    const data = map.data
+    const offscreen = document.createElement('canvas')
+    offscreen.width = width
+    offscreen.height = height
+    const ctx = offscreen.getContext('2d')
     if (!ctx) return
 
-    const { width, height, resolution, origin } = map.info
-    const data = map.data
-
-    // Set canvas size
-    canvas.width = width
-    canvas.height = height
-
-    // Create image data
     const imageData = ctx.createImageData(width, height)
 
-    // Draw map
     for (let i = 0; i < data.length; i++) {
       const value = data[i]
       const idx = i * 4
 
       if (value === -1) {
-        // Unknown - gray
         imageData.data[idx] = 128
         imageData.data[idx + 1] = 128
         imageData.data[idx + 2] = 128
         imageData.data[idx + 3] = 255
       } else if (value === 0) {
-        // Free space - white
         imageData.data[idx] = 255
         imageData.data[idx + 1] = 255
         imageData.data[idx + 2] = 255
         imageData.data[idx + 3] = 255
       } else {
-        // Occupied - black
         imageData.data[idx] = 0
         imageData.data[idx + 1] = 0
         imageData.data[idx + 2] = 0
@@ -57,22 +57,36 @@ export function MapView({ position }: Props) {
     }
 
     ctx.putImageData(imageData, 0, 0)
+    cachedMapRef.current = offscreen
+  }, [map])
 
-    // Draw robot position
-    const mapX = (robotPos.x - origin.position.x) / resolution
-    const mapY = (robotPos.y - origin.position.y) / resolution
-    const canvasY = height - mapY // Flip Y axis
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const cached = cachedMapRef.current
+    if (!canvas || !map || !cached) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const { width, height, resolution, origin } = map.info
+    canvas.width = width
+    canvas.height = height
+
+    ctx.clearRect(0, 0, width, height)
+    ctx.drawImage(cached, 0, 0)
+
+    const mapX = (posX - origin.position.x) / resolution
+    const mapY = (posY - origin.position.y) / resolution
+    const canvasY = height - mapY
 
     if (mapX >= 0 && mapX < width && canvasY >= 0 && canvasY < height) {
       ctx.save()
       ctx.translate(mapX, canvasY)
-      
-      // Calculate yaw from quaternion
-      const yaw = 2 * Math.atan2(robotOri.z, robotOri.w)
+
+      const yaw = 2 * Math.atan2(oriZ, oriW)
       ctx.rotate(yaw)
 
-      // Draw robot as a triangle
-      ctx.fillStyle = '#2563eb' // Blue-600
+      ctx.fillStyle = '#2563eb'
       ctx.beginPath()
       ctx.moveTo(0, -8)
       ctx.lineTo(-5, 5)
@@ -80,8 +94,7 @@ export function MapView({ position }: Props) {
       ctx.closePath()
       ctx.fill()
 
-      // Draw direction line
-      ctx.strokeStyle = '#0ea5e9' // Sky-500
+      ctx.strokeStyle = '#0ea5e9'
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.moveTo(0, 0)
@@ -90,7 +103,7 @@ export function MapView({ position }: Props) {
 
       ctx.restore()
     }
-  }, [map, robotPos, robotOri])
+  }, [map, posX, posY, oriZ, oriW])
 
   if (!map) {
     return (

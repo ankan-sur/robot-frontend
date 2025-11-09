@@ -1,6 +1,5 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { usePointsOfInterest, PointOfInterest, useRobotState } from '../ros/hooks'
-import { topics } from '../ros/ros'
 
 type Props = {
   goToLab: (poi: PointOfInterest) => void
@@ -16,8 +15,8 @@ export function Controls({ goToLab, onStop, disabledMove, controlAllowed }: Prop
   
   const selectedPoiData = pois.find(p => `${p.x},${p.y}` === selectedPoi)
   const hasPois = pois.length > 0
-  // Only enable stop if robot is responding to a command
-  const isRespondingToCommand = robotState === 'responding_to_command'
+  const canIssueCommands = !(disabledMove) && (controlAllowed ?? true)
+  const stopEnabled = canIssueCommands && (robotState ? robotState !== 'idle' : true)
 
   return (
     <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
@@ -52,8 +51,16 @@ export function Controls({ goToLab, onStop, disabledMove, controlAllowed }: Prop
               onClick={() => {
                 if (selectedPoiData) goToLab(selectedPoiData)
               }}
-              disabled={disabledMove || !selectedPoiData || !hasPois}
-              title={disabledMove ? 'Controls not available' : !hasPois ? 'No destinations available' : !selectedPoiData ? 'Select a destination' : 'Navigate to destination'}
+              disabled={!canIssueCommands || !selectedPoiData || !hasPois}
+              title={
+                !canIssueCommands
+                  ? 'Controls not available'
+                  : !hasPois
+                    ? 'No destinations available'
+                    : !selectedPoiData
+                      ? 'Select a destination'
+                      : 'Navigate to destination'
+              }
               className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
             >
               Go
@@ -65,13 +72,18 @@ export function Controls({ goToLab, onStop, disabledMove, controlAllowed }: Prop
             </div>
           )}
         </div>
-        <div className={`text-sm p-2 rounded-lg border-2 ${controlAllowed ? 'bg-green-50 text-green-800 border-green-300' : 'bg-amber-50 text-amber-800 border-amber-300'}`}>
-          {controlAllowed ? '✓ You have control' : '⚠ Controls disabled until robot grants control'}
+        <div className={`text-sm p-2 rounded-lg border-2 ${canIssueCommands ? 'bg-green-50 text-green-800 border-green-300' : 'bg-amber-50 text-amber-800 border-amber-300'}`}>
+          {canIssueCommands ? '✓ You have control' : '⚠ Controls disabled until robot grants control'}
+          {robotState && (
+            <span className="ml-2 text-xs font-medium">
+              State: {robotState.replace(/_/g, ' ')}
+            </span>
+          )}
         </div>
         <button
           onClick={onStop}
-          disabled={!isRespondingToCommand}
-          title={!isRespondingToCommand ? 'Stop only available when robot is responding to a command' : 'Stop the current command'}
+          disabled={!stopEnabled}
+          title={stopEnabled ? 'Stop the current command' : 'Stop is only available when connected'}
           className="w-full px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-semibold text-base disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg disabled:hover:shadow-md"
         >
           Stop

@@ -9,21 +9,21 @@ type Props = {
 export function DebugPanel({ onMapChange }: Props) {
   const [selectedMap, setSelectedMap] = useState<string>('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
   const availableMaps = useAvailableMaps()
 
   const handleChangeMap = async () => {
     if (!selectedMap) return
 
     setLoading(true)
-    setError(null)
+    setStatus(null)
 
     try {
       await changeMap(selectedMap)
       onMapChange?.(selectedMap)
-      alert(`Map changed to: ${selectedMap}`)
+      setStatus({ kind: 'success', text: `Map changed to ${selectedMap}` })
     } catch (err: any) {
-      setError(err.message || 'Failed to change map')
+      setStatus({ kind: 'error', text: err?.message || 'Failed to change map' })
       console.error('Map change error:', err)
     } finally {
       setLoading(false)
@@ -78,9 +78,9 @@ export function DebugPanel({ onMapChange }: Props) {
         >
           {loading ? 'Changing...' : 'Change Map'}
         </button>
-        {error && (
-          <div className="text-base text-red-700 bg-red-50 p-2 rounded-lg border-2 border-red-300 font-medium">
-            {error}
+        {status && (
+          <div className={`text-base p-2 rounded-lg border-2 font-medium ${status.kind === 'success' ? 'text-green-700 bg-green-50 border-green-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
+            {status.text}
           </div>
         )}
         <div className="text-sm text-blue-700 mt-2">
@@ -90,6 +90,5 @@ export function DebugPanel({ onMapChange }: Props) {
     </section>
   )
 }
-
 
 
