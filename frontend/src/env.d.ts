@@ -9,7 +9,6 @@ interface ImportMetaEnv {
   readonly VITE_RWT_MAP_URL?: string;
   readonly VITE_RWT_TELEOP_URL?: string;
   readonly VITE_RWT_IMAGE_URL?: string;
-  readonly VITE_ROS_TOOL_URL?: string;
   readonly VITE_ROSBOARD_URL?: string;
   readonly VITE_BACKEND_URL?: string;
   readonly VITE_API_BASE?: string;

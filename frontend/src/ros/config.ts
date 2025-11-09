@@ -41,7 +41,6 @@ export const ROS_CONFIG = {
     map: import.meta.env.VITE_RWT_MAP_URL || `${import.meta.env.VITE_RWT_BASE || defaultRwtBase}/rwt/map`,
     teleop: import.meta.env.VITE_RWT_TELEOP_URL || `${import.meta.env.VITE_RWT_BASE || defaultRwtBase}/rwt/teleop`,
     image: import.meta.env.VITE_RWT_IMAGE_URL || `${import.meta.env.VITE_RWT_BASE || defaultRwtBase}/rwt/image`,
-    rosTool: import.meta.env.VITE_ROS_TOOL_URL || '',
     rosboard: import.meta.env.VITE_ROSBOARD_URL || defaultRosboard,
   },
   messageTypes: {

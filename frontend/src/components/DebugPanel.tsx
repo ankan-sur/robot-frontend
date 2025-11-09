@@ -100,20 +100,9 @@ export function DebugPanel({ onMapChange }: Props) {
                 Open Rosboard
               </a>
             )}
-            {ROS_CONFIG.rwt.rosTool && (
-              <a
-                href={ROS_CONFIG.rwt.rosTool}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1.5 text-sm rounded bg-indigo-600 text-white hover:bg-indigo-500"
-              >
-                Open ROS Tool
-              </a>
-            )}
           </div>
         </div>
       </div>
     </section>
   )
 }
-
