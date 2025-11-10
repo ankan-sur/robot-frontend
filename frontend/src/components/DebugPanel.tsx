@@ -40,48 +40,7 @@ export function DebugPanel({ onMapChange }: Props) {
         <div className="rounded-lg border-2 border-blue-300 bg-white p-4">
           <TeleopBlock />
         </div>
-        <div>
-          <label className="block text-base font-medium text-blue-700 mb-2" htmlFor="map-select">
-            Select Map
-          </label>
-          <select
-            id="map-select"
-            className={`w-full rounded-lg border-2 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-              hasMaps 
-                ? 'border-blue-300 bg-white text-blue-900 hover:border-blue-400' 
-                : 'border-gray-300 bg-gray-100 text-gray-400'
-            }`}
-            value={selectedMap}
-            onChange={(e) => setSelectedMap(e.target.value)}
-            disabled={loading || !hasMaps}
-          >
-            <option value="">
-              {hasMaps ? 'Choose a map...' : 'NA - No maps available'}
-            </option>
-            {availableMaps.map((map) => (
-              <option key={map} value={map}>
-                {map}
-              </option>
-            ))}
-          </select>
-          {!hasMaps && (
-            <div className="text-xs text-gray-500 mt-1">
-              Waiting for maps from ROS...
-            </div>
-          )}
-        </div>
-        <button
-          onClick={handleChangeMap}
-          disabled={!selectedMap || loading || !hasMaps}
-          className="w-full px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
-        >
-          {loading ? 'Changing...' : 'Change Map'}
-        </button>
-        {status && (
-          <div className={`text-base p-2 rounded-lg border-2 font-medium ${status.kind === 'success' ? 'text-green-700 bg-green-50 border-green-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
-            {status.text}
-          </div>
-        )}
+        {/* Map selection hidden for now */}
         <div className="text-sm text-blue-700 mt-2 space-y-2">
           <div>
             Maps from: <code className="bg-blue-100 px-2 py-0.5 rounded font-mono">ros2_ws/src/slam/maps</code>

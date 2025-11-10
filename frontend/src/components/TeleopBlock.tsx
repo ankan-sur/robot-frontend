@@ -4,8 +4,9 @@ import { useRosConnection } from '../ros/hooks'
 
 export function TeleopBlock() {
   const { connected } = useRosConnection()
-  const [lin, setLin] = useState(0.3)
-  const [ang, setAng] = useState(1.0)
+  // Fixed demo speeds to avoid slider confusion
+  const lin = 0.3
+  const ang = 1.0
   const [interfaceType, setInterfaceType] = useState<'buttons' | 'joystick'>('buttons')
   const held = useRef({ vx: 0, wz: 0 })
   const intervalRef = useRef<number | null>(null)
@@ -114,46 +115,7 @@ export function TeleopBlock() {
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-        <div className="flex items-center gap-3">
-          <label className="text-sm text-slate-600 w-20">Linear</label>
-          <input
-            className="flex-1"
-            type="range"
-            min="0"
-            max={MAX_LINEAR}
-            step="0.1"
-            value={lin}
-            onChange={(e) => {
-              const v = +e.target.value
-              setLin(v)
-              if (held.current.vx !== 0) {
-                held.current.vx = Math.sign(held.current.vx) * v
-              }
-            }}
-          />
-          <div className="w-14 text-right font-mono text-sm text-slate-700">{lin.toFixed(1)}</div>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className="text-sm text-slate-600 w-20">Angular</label>
-          <input
-            className="flex-1"
-            type="range"
-            min="0"
-            max={MAX_ANGULAR}
-            step="0.1"
-            value={ang}
-            onChange={(e) => {
-              const v = +e.target.value
-              setAng(v)
-              if (held.current.wz !== 0) {
-                held.current.wz = Math.sign(held.current.wz) * v
-              }
-            }}
-          />
-          <div className="w-14 text-right font-mono text-sm text-slate-700">{ang.toFixed(1)}</div>
-        </div>
-      </div>
+      <div className="text-xs text-slate-600">Speeds fixed for demo: lin={lin.toFixed(1)} m/s, ang={ang.toFixed(1)} rad/s</div>
 
       {interfaceType === 'buttons' ? (
         <div className="flex flex-wrap gap-2">

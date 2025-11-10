@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { ROS_CONFIG } from '../ros/config'
 
 export default function VideoFeed() {
-  const safeTopic = encodeURIComponent(ROS_CONFIG.topics.camera)
+  // Use encodeURI, not encodeURIComponent, so slashes in topic aren't escaped
+  const safeTopic = encodeURI(ROS_CONFIG.topics.camera)
   const mjpegUrl = `${ROS_CONFIG.videoBase}/stream?topic=${safeTopic}&type=mjpeg`
   const viewerUrl = `${ROS_CONFIG.videoBase}/stream_viewer?topic=${safeTopic}`
   const [useViewer, setUseViewer] = useState(false)
