@@ -83,8 +83,17 @@ export function useOdom() {
   return odom;
 }
 
-export function useBattery() {
-  const [battery, setBattery] = useState<number | null>(null);
+export interface BatteryReading {
+  millivolts: number | null;
+  volts: number | null;
+  percent: number | null;
+}
+
+const BATTERY_MIN_MV = 6000; // 6.0V (2S LiPo lower bound, adjust to your pack)
+const BATTERY_MAX_MV = 8400; // 8.4V (2S LiPo full charge)
+
+export function useBattery(): BatteryReading | null {
+  const [battery, setBattery] = useState<BatteryReading | null>(null);
   const connectionState = useConnectionWatcher();
 
   useEffect(() => {
@@ -99,19 +108,57 @@ export function useBattery() {
     } as any);
 
     const handleMessage = (msg: any) => {
-      const rawValue = msg.data ?? msg.percentage ?? msg.battery_level ?? msg.value ?? null;
+      // Try to interpret as BatteryState or simple numeric messages.
+      // Possible shapes:
+      // - std_msgs/UInt16: { data: <millivolts> }
+      // - std_msgs/Float32: { data: <volts or percent> }
+      // - sensor_msgs/BatteryState: { voltage: <V>, percentage: <0..1> }
+      // - custom: { battery_level, value, percentage }
 
-      if (typeof rawValue === 'number' && !isNaN(rawValue)) {
-        const MIN_VOLTAGE_MV = 6000;
-        const MAX_VOLTAGE_MV = 8400;
+      let mv: number | null = null;
+      let v: number | null = null;
+      let pct: number | null = null;
 
-        const percentage = rawValue >= 0 && rawValue <= 100
-          ? rawValue
-          : Math.max(0, Math.min(100, ((rawValue - MIN_VOLTAGE_MV) / (MAX_VOLTAGE_MV - MIN_VOLTAGE_MV)) * 100));
+      const dataVal = msg?.data ?? msg?.value ?? null;
+      const voltageV = msg?.voltage ?? msg?.voltage_v ?? null;
+      const percentageField = msg?.percentage ?? msg?.percent ?? null;
 
-        setBattery(percentage);
-      } else {
+      if (typeof voltageV === 'number' && !isNaN(voltageV)) {
+        v = voltageV;
+        mv = Math.round(voltageV * 1000);
+      }
+
+      if (typeof dataVal === 'number' && !isNaN(dataVal)) {
+        if (dataVal > 100) {
+          // Likely millivolts
+          mv = dataVal;
+          v = dataVal / 1000;
+        } else {
+          // 0..100 percent or volts in small systems; assume percent here
+          pct = dataVal;
+        }
+      }
+
+      if (typeof percentageField === 'number' && !isNaN(percentageField)) {
+        // BatteryState uses 0..1
+        pct = percentageField <= 1 ? percentageField * 100 : percentageField;
+      }
+
+      // Compute missing percent from mV if needed
+      if ((pct == null || isNaN(pct)) && typeof mv === 'number') {
+        const clamped = Math.max(0, Math.min(100, ((mv - BATTERY_MIN_MV) / (BATTERY_MAX_MV - BATTERY_MIN_MV)) * 100));
+        pct = clamped;
+      }
+
+      // Round for stable UI
+      if (typeof v === 'number') v = Math.round(v * 100) / 100; // 2 decimals
+      if (typeof mv === 'number') mv = Math.round(mv);
+      if (typeof pct === 'number') pct = Math.max(0, Math.min(100, Math.round(pct)));
+
+      if (v == null && mv == null && pct == null) {
         setBattery(null);
+      } else {
+        setBattery({ millivolts: mv ?? (v != null ? Math.round(v * 1000) : null), volts: v ?? (mv != null ? mv / 1000 : null), percent: pct ?? null });
       }
     };
 

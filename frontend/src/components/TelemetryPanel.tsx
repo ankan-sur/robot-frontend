@@ -3,7 +3,7 @@ import { ROS_CONFIG } from '../ros/config'
 
 export function TelemetryPanel() {
   const { connected, state, latency } = useRosConnection()
-  const batteryHook = useBattery()
+  const battery = useBattery()
   const odom = useOdom()
   const imuRpy = useIMURPY()
   const buttonPressed = useButton()
@@ -14,8 +14,9 @@ export function TelemetryPanel() {
   const angularVel = (odom?.twist as any)?.twist?.angular || (odom?.twist as any)?.angular || { x: 0, y: 0, z: 0 }
   const speed = Math.sqrt((velocity.x || 0) ** 2 + (velocity.y || 0) ** 2)
 
-  // Battery: temporarily rely only on the dedicated battery topic (UInt16/Float32 tolerant)
-  const mergedBattery = batteryHook
+  // Battery values
+  const voltageV = battery?.volts ?? null
+  const percent = battery?.percent ?? null
 
   const getStateDisplay = () => {
     if (!robotState) {
@@ -71,13 +72,21 @@ export function TelemetryPanel() {
           )}
         </div>
 
-        {/* Battery Voltage (instantaneous) */}
+        {/* Battery */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 border-2 border-blue-300">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-base font-medium text-blue-800">Battery Voltage</span>
-            <span className="text-xl font-bold text-blue-900">{mergedBattery != null ? `${mergedBattery.toFixed(1)}%` : '—'}</span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-base font-medium text-blue-800">Battery</span>
+            <div className="text-right">
+              <div className="text-xl font-bold text-blue-900">{voltageV != null ? `${voltageV.toFixed(2)} V` : '—'}</div>
+              <div className="text-xs text-blue-700">{percent != null ? `${percent}%` : 'percentage unavailable'}</div>
+            </div>
           </div>
-          <div className="text-xs text-blue-700">Live pack voltage mapped to %, will dip under load.</div>
+          <div className="h-3 w-full bg-blue-100 rounded overflow-hidden border border-blue-300">
+            <div
+              className="h-full bg-green-500 transition-all"
+              style={{ width: `${Math.max(0, Math.min(100, percent ?? 0))}%` }}
+            />
+          </div>
         </div>
 
         {/* Network/Endpoints */}
