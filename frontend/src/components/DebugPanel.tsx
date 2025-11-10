@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { changeMap, useAvailableMaps } from '../ros/hooks'
-import { RwtPanel } from './RwtPanel'
+import { TeleopBlock } from './TeleopBlock'
 import { ROS_CONFIG } from '../ros/config'
 
 type Props = {
@@ -37,12 +37,9 @@ export function DebugPanel({ onMapChange }: Props) {
     <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
       <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Debug Panel</h2>
       <div className="space-y-4">
-        <RwtPanel
-          title="Teleop"
-          src={ROS_CONFIG.rwt.teleop}
-          description="Expose visualization_rwt's teleop widget and set VITE_RWT_TELEOP_URL so the dashboard can embed it."
-          heightClass="h-80"
-        />
+        <div className="rounded-lg border-2 border-blue-300 bg-white p-4">
+          <TeleopBlock />
+        </div>
         <div>
           <label className="block text-base font-medium text-blue-700 mb-2" htmlFor="map-select">
             Select Map
