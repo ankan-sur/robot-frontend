@@ -409,10 +409,10 @@ export interface PointOfInterest {
   yaw?: number;
 }
 
-const DEMO_POIS: PointOfInterest[] = [
-  { name: 'Nurse Station', x: 2.1, y: 1.3, yaw: 0 },
-  { name: 'Lab Bench', x: -0.6, y: 3.8, yaw: 1.57 },
-  { name: 'Charger Dock', x: 0, y: 0, yaw: 0 }
+const DEMO_POIS = [
+  { name: 'Point A', x: 1.60414, y: 0.661303, yaw: -1.53197 },
+  { name: 'Point B', x: 1.42141, y: -1.62162, yaw: 1.54668 },
+  { name: 'Point C', x: 1.60858, y: -1.63026, yaw: 1.5735 },
 ];
 
 // Fetch POIs from ROS topic
