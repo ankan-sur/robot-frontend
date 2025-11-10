@@ -46,11 +46,6 @@ export const topics = {
   odom: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.odom, messageType: ROS_CONFIG.messageTypes.odom }),
   battery: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.battery, messageType: ROS_CONFIG.messageTypes.battery }),
 
-  // Optional UI bridge topics (subscribe only if available in your system)
   robotState: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.robotState, messageType: ROS_CONFIG.messageTypes.robotState }),
-  robotLog: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.robotLog, messageType: ROS_CONFIG.messageTypes.robotLog }),
-  cmdFeedback: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.cmdFeedback, messageType: ROS_CONFIG.messageTypes.cmdFeedback }),
-  uiCmd: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.uiCmd, messageType: ROS_CONFIG.messageTypes.uiCmd }),
-  uiCancel: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.uiCancel, messageType: ROS_CONFIG.messageTypes.uiCancel }),
   rosout: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.rosout, messageType: ROS_CONFIG.messageTypes.rosout }),
 };

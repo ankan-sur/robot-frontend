@@ -1,14 +1,11 @@
-import * as createjs from '@createjs/easeljs'
 import EventEmitter2 from 'eventemitter2'
 import ROSLIB from 'roslib'
 
 let ros2dPromise: Promise<any> | null = null
+let createjsPromise: Promise<void> | null = null
 
 const ensureGlobals = () => {
   const globalAny = globalThis as any
-  if (!globalAny.createjs) {
-    globalAny.createjs = createjs
-  }
   if (!globalAny.EventEmitter2) {
     globalAny.EventEmitter2 = EventEmitter2
   }
@@ -27,6 +24,21 @@ const loadScript = (url: string) =>
     document.body.appendChild(script)
   })
 
+const loadLegacyCreatejs = () => {
+  const globalAny = globalThis as any
+  if (globalAny.createjs?.Ticker?.setFPS) {
+    return Promise.resolve()
+  }
+  if (!createjsPromise) {
+    createjsPromise = loadScript('https://static.robotwebtools.org/EaselJS/current/easeljs.js').then(() => {
+      if (!globalAny.createjs) {
+        throw new Error('Failed to load legacy createjs')
+      }
+    })
+  }
+  return createjsPromise
+}
+
 export async function loadRos2d() {
   ensureGlobals()
   const globalAny = globalThis as any
@@ -34,9 +46,10 @@ export async function loadRos2d() {
     return globalAny.ROS2D
   }
   if (!ros2dPromise) {
-    ros2dPromise = import('ros2d/build/ros2d.js?url').then(({ default: url }) =>
-      loadScript(url).then(() => globalAny.ROS2D)
-    )
+    ros2dPromise = loadLegacyCreatejs()
+      .then(() => import('ros2d/build/ros2d.js?url'))
+      .then(({ default: url }) => loadScript(url))
+      .then(() => globalAny.ROS2D)
   }
   return ros2dPromise
 }

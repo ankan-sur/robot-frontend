@@ -41,6 +41,11 @@ export function MapView({ odom }: Props) {
         const ROS2D = await loadRos2d()
         if (cancelled || !containerRef.current) return
 
+        const createjs = (globalThis as any).createjs
+        if (!createjs?.Graphics) {
+          throw new Error('createjs not available')
+        }
+
         const viewer = new ROS2D.Viewer({
           divID: containerId,
           width,

@@ -23,11 +23,6 @@ export const ROS_CONFIG = {
     diagnostics: '/diagnostics',
     button: '/ros_robot_controller/button',
     robotState: '/robot/state', // 'idle', 'responding_to_command', 'heading_to_charger'
-    // Optional UI/bridge topics (if your ui_bridge publishes these)
-    robotLog: '/robot/log',
-    cmdFeedback: '/robot/cmd_feedback',
-    uiCmd: '/ui/cmd',
-    uiCancel: '/ui/cmd_cancel',
     rosout: '/rosout',
   },
   services: {
@@ -51,16 +46,11 @@ export const ROS_CONFIG = {
     map: 'nav_msgs/OccupancyGrid',
     mapMetadata: 'nav_msgs/MapMetaData',
     pois: 'std_msgs/String', // Adjust based on actual POI message type
-    imuRpy: 'geometry_msgs/Vector3', // Roll, Pitch, Yaw
+    imuRpy: 'geometry_msgs/Vector3Stamped', // Roll, Pitch, Yaw
     jointStates: 'sensor_msgs/JointState',
     diagnostics: 'diagnostic_msgs/DiagnosticArray',
-    button: 'std_msgs/Bool', // or UInt8, adjust based on actual type
+    button: 'ros_robot_controller_msgs/ButtonState',
     robotState: 'std_msgs/String', // Robot state string
-    // Optional UI/bridge message types
-    robotLog: 'std_msgs/String',
-    cmdFeedback: 'std_msgs/String',
-    uiCmd: 'std_msgs/String',
-    uiCancel: 'std_msgs/String',
     rosout: 'rcl_interfaces/Log',
   }
 };

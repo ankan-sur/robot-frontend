@@ -148,9 +148,10 @@ export function useIMURPY() {
     });
     
     const handleMessage = (msg: any) => {
-      const roll = msg.x ?? msg.roll ?? 0;
-      const pitch = msg.y ?? msg.pitch ?? 0;
-      const yaw = msg.z ?? msg.yaw ?? 0;
+      const vector = msg?.vector ?? msg;
+      const roll = vector?.x ?? vector?.roll ?? 0;
+      const pitch = vector?.y ?? vector?.pitch ?? 0;
+      const yaw = vector?.z ?? vector?.yaw ?? 0;
       setRpy({ x: roll, y: pitch, z: yaw });
     };
 
@@ -223,7 +224,7 @@ export function useButton() {
     });
     
     const handleMessage = (msg: any) => {
-      const value = msg.data ?? msg.value ?? false;
+      const value = msg?.pressed ?? msg?.state ?? msg?.data ?? msg?.value ?? false;
       setButtonPressed(Boolean(value));
     };
 
@@ -408,14 +409,20 @@ export interface PointOfInterest {
   yaw?: number;
 }
 
+const DEMO_POIS: PointOfInterest[] = [
+  { name: 'Nurse Station', x: 2.1, y: 1.3, yaw: 0 },
+  { name: 'Lab Bench', x: -0.6, y: 3.8, yaw: 1.57 },
+  { name: 'Charger Dock', x: 0, y: 0, yaw: 0 }
+];
+
 // Fetch POIs from ROS topic
 export function usePointsOfInterest(): PointOfInterest[] {
-  const [pois, setPois] = useState<PointOfInterest[]>([]);
+  const [pois, setPois] = useState<PointOfInterest[]>(DEMO_POIS);
   const connectionState = useConnectionWatcher();
 
   useEffect(() => {
     if (connectionState !== 'connected') {
-      setPois([]);
+      setPois(DEMO_POIS);
       return;
     }
 
@@ -438,12 +445,14 @@ export function usePointsOfInterest(): PointOfInterest[] {
           parsed = msg;
         }
 
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           setPois(parsed);
+        } else {
+          setPois(DEMO_POIS);
         }
       } catch (error) {
         console.error('Failed to parse POIs:', error);
-        setPois([]);
+        setPois(DEMO_POIS);
       }
     };
 
@@ -548,13 +557,15 @@ export function changeMap(mapName: string): Promise<void> {
 }
 
 // Fetch available maps from ROS service
+const DEMO_MAPS = ['map_lab_demo'];
+
 export function useAvailableMaps(): string[] {
-  const [maps, setMaps] = useState<string[]>([]);
+  const [maps, setMaps] = useState<string[]>(DEMO_MAPS);
   const connectionState = useConnectionWatcher();
 
   useEffect(() => {
     if (connectionState !== 'connected') {
-      setMaps([]);
+      setMaps(DEMO_MAPS);
       return;
     }
 
@@ -594,11 +605,11 @@ export function useAvailableMaps(): string[] {
         }
       } catch (error) {
         console.error('Failed to parse maps list:', error);
-        if (!cancelled) setMaps([]);
+        if (!cancelled) setMaps(DEMO_MAPS);
       }
     }, (error: any) => {
       console.error('Failed to list maps:', error);
-      if (!cancelled) setMaps([]);
+      if (!cancelled) setMaps(DEMO_MAPS);
     });
 
     const mapsTopic = new ROSLIB.Topic({
