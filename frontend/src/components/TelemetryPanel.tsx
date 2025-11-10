@@ -1,4 +1,5 @@
 import { useRosConnection, useBattery, useOdom, useIMURPY, useButton, useRobotState } from '../ros/hooks'
+import { ROS_CONFIG } from '../ros/config'
 
 export function TelemetryPanel() {
   const { connected, state, latency } = useRosConnection()
@@ -7,7 +8,7 @@ export function TelemetryPanel() {
   const imuRpy = useIMURPY()
   const buttonPressed = useButton()
   const robotState = useRobotState()
-  const position = odom?.pose?.pose?.position || { x: 0, y: 0, z: 0 }
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
 
   const velocity = (odom?.twist as any)?.twist?.linear || (odom?.twist as any)?.linear || { x: 0, y: 0, z: 0 }
   const angularVel = (odom?.twist as any)?.twist?.angular || (odom?.twist as any)?.angular || { x: 0, y: 0, z: 0 }
@@ -70,42 +71,23 @@ export function TelemetryPanel() {
           )}
         </div>
 
-        {/* Battery */}
+        {/* Battery Voltage (instantaneous) */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 border-2 border-blue-300">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-base font-medium text-blue-800">Battery</span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-base font-medium text-blue-800">Battery Voltage</span>
             <span className="text-xl font-bold text-blue-900">{mergedBattery != null ? `${mergedBattery.toFixed(1)}%` : '—'}</span>
           </div>
-          {mergedBattery != null && (
-            <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden">
-              <div
-                className={`h-3 rounded-full transition-all duration-300 ${
-                  mergedBattery > 50 ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
-                  mergedBattery > 20 ? 'bg-gradient-to-r from-yellow-400 to-amber-500' :
-                  'bg-gradient-to-r from-red-500 to-rose-600'
-                }`}
-                style={{ width: `${Math.min(100, Math.max(0, mergedBattery))}%` }}
-              ></div>
-            </div>
-          )}
+          <div className="text-xs text-blue-700">Live pack voltage mapped to %, will dip under load.</div>
         </div>
 
-        {/* Position */}
+        {/* Network/Endpoints */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 border-2 border-blue-300">
-          <div className="text-base font-medium text-blue-800 mb-2">Position</div>
-          <div className="grid grid-cols-3 gap-2 text-sm">
-            <div><span className="text-blue-600">X:</span><span className="ml-1 font-mono text-blue-900 font-semibold">{position.x.toFixed(2)}</span></div>
-            <div><span className="text-blue-600">Y:</span><span className="ml-1 font-mono text-blue-900 font-semibold">{position.y.toFixed(2)}</span></div>
-            <div><span className="text-blue-600">Z:</span><span className="ml-1 font-mono text-blue-900 font-semibold">{position.z.toFixed(2)}</span></div>
-          </div>
-        </div>
-
-        {/* Velocity */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 border-2 border-blue-300">
-          <div className="text-base font-medium text-blue-800 mb-2">Velocity</div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div><span className="text-blue-600">Linear:</span><span className="ml-1 font-mono text-blue-900 font-semibold">{speed.toFixed(2)} m/s</span></div>
-            <div><span className="text-blue-600">Angular:</span><span className="ml-1 font-mono text-blue-900 font-semibold">{angularVel.z.toFixed(2)} rad/s</span></div>
+          <div className="text-base font-medium text-blue-800 mb-2">Connection Info</div>
+          <div className="text-sm space-y-1">
+            <div><span className="text-blue-600">Host:</span> <span className="font-mono text-blue-900">{host}</span></div>
+            <div><span className="text-blue-600">ROS Bridge:</span> <span className="font-mono text-blue-900">{ROS_CONFIG.rosbridgeUrl}</span></div>
+            <div><span className="text-blue-600">Video Base:</span> <span className="font-mono text-blue-900">{ROS_CONFIG.videoBase}</span></div>
+            <div><span className="text-blue-600">Camera Topic:</span> <span className="font-mono text-blue-900">{ROS_CONFIG.topics.camera}</span></div>
           </div>
         </div>
 

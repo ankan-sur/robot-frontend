@@ -11,6 +11,7 @@ export function DebugLog() {
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const logEndRef = useRef<HTMLDivElement>(null)
+  const [autoScroll, setAutoScroll] = useState(false)
 
   // Hold current connections
   const eventSourceRef = useRef<EventSource | null>(null)
@@ -67,15 +68,12 @@ export function DebugLog() {
   }, [tab])
 
   useEffect(() => {
-    // Only smooth scroll if user is near bottom
-    const container = logEndRef.current?.parentElement;
+    if (!autoScroll) return
+    const container = logEndRef.current?.parentElement
     if (container) {
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-      if (isNearBottom) {
-        logEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      }
+      logEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
     }
-  }, [logs])
+  }, [logs, autoScroll])
 
   const clearLogs = () => setLogs([])
 
@@ -87,6 +85,9 @@ export function DebugLog() {
           <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
           <span className="text-xs text-blue-700">{isConnected ? 'Streaming' : 'Disconnected'}</span>
           <button onClick={clearLogs} className="px-2 py-1 text-xs rounded bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors">Clear</button>
+          <label className="flex items-center gap-1 text-xs text-blue-700">
+            <input type="checkbox" checked={autoScroll} onChange={(e)=>setAutoScroll(e.target.checked)} /> Auto-scroll
+          </label>
         </div>
       </div>
 
