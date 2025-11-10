@@ -86,17 +86,25 @@ export function DebugPanel({ onMapChange }: Props) {
           <div>
             Maps from: <code className="bg-blue-100 px-2 py-0.5 rounded font-mono">ros2_ws/src/slam/maps</code>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2">
             {ROS_CONFIG.rwt.rosboard && (
-              <a
-                href={ROS_CONFIG.rwt.rosboard}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1.5 text-sm rounded bg-slate-900 text-white hover:bg-slate-800"
-              >
-                Open Rosboard
-              </a>
+              <div className="flex items-center gap-2">
+                <a
+                  href={ROS_CONFIG.rwt.rosboard}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 text-sm rounded bg-indigo-600 text-white hover:bg-indigo-500"
+                  title="Opens rosboard in a new tab"
+                >
+                  Open Rosboard (port 8888)
+                </a>
+              </div>
             )}
+            <div className="text-xs text-blue-700">
+              To start rosboard on the Pi:
+              <pre className="mt-1 p-2 bg-blue-100 rounded text-[11px] whitespace-pre-wrap">
+docker exec -u ubuntu -w /home/ubuntu MentorPi /bin/zsh -c "ros2 run rosboard rosboard_node --bind 0.0.0.0 --port 8888"</pre>
+            </div>
           </div>
         </div>
       </div>

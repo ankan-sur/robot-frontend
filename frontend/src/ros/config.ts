@@ -5,7 +5,7 @@ const defaultHost = typeof window !== 'undefined' && window.location?.hostname
 const defaultRosbridge = `ws://${defaultHost}:9090`;
 const defaultVideoBase = `http://${defaultHost}:8080`;
 const defaultRwtBase = `http://${defaultHost}:8001`;
-const defaultRosboard = `http://${defaultHost}:8081`;
+const defaultRosboard = `http://${defaultHost}:8888`;
 
 export const ROS_CONFIG = {
   rosbridgeUrl: import.meta.env.VITE_ROSBRIDGE_URL || import.meta.env.VITE_ROSBRIDGE_FALLBACK_URL || defaultRosbridge,
