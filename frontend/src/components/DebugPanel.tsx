@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { changeMap, useAvailableMaps } from '../ros/hooks'
+import { changeMap, useAvailableMaps, publishInitialPose, DEMO_INITIAL_POSE } from '../ros/hooks'
 import { TeleopBlock } from './TeleopBlock'
 import { ROS_CONFIG } from '../ros/config'
 
@@ -40,6 +40,27 @@ export function DebugPanel({ onMapChange }: Props) {
         <div className="rounded-lg border-2 border-blue-300 bg-white p-4">
           <TeleopBlock />
         </div>
+        <div className="rounded-lg border-2 border-blue-300 bg-white p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-base font-medium text-blue-800">Localization</div>
+            <button
+              className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-500"
+              onClick={async () => {
+                try {
+                  await publishInitialPose(DEMO_INITIAL_POSE.x, DEMO_INITIAL_POSE.y, DEMO_INITIAL_POSE.yaw)
+                  setStatus({ kind: 'success', text: 'Initial pose published.' })
+                } catch (e: any) {
+                  setStatus({ kind: 'error', text: e?.message || 'Failed to publish initial pose' })
+                }
+              }}
+            >
+              Set Demo Initial Pose
+            </button>
+          </div>
+          <div className="text-xs text-blue-700 mt-1">
+            map → odom TF appears after setting an initial pose.
+          </div>
+        </div>
         {/* Map selection hidden for now */}
         <div className="text-sm text-blue-700 mt-2 space-y-2">
           <div>
@@ -66,6 +87,11 @@ docker exec -u ubuntu -w /home/ubuntu MentorPi /bin/zsh -c "ros2 run rosboard ro
             </div>
           </div>
         </div>
+        {status && (
+          <div className={`text-sm rounded p-2 border ${status.kind === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+            {status.text}
+          </div>
+        )}
       </div>
     </section>
   )

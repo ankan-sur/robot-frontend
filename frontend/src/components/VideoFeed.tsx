@@ -38,6 +38,12 @@ export default function VideoFeed() {
           />
         )}
       </div>
+      <div className="mt-2 text-xs text-blue-700">
+        If the image is blank, try opening the stream directly: {' '}
+        <a className="underline" href={mjpegUrl} target="_blank" rel="noreferrer">MJPEG</a>
+        {' '}or{' '}
+        <a className="underline" href={viewerUrl} target="_blank" rel="noreferrer">Viewer</a>.
+      </div>
     </section>
   )
 }

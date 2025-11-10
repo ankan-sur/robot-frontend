@@ -409,10 +409,12 @@ export interface PointOfInterest {
   yaw?: number;
 }
 
+// Demo POIs hardcoded from RViz picks shared during setup
 const DEMO_POIS = [
-  { name: 'Point A', x: 1.60414, y: 0.661303, yaw: -1.53197 },
-  { name: 'Point B', x: 1.42141, y: -1.62162, yaw: 1.54668 },
-  { name: 'Point C', x: 1.60858, y: -1.63026, yaw: 1.5735 },
+  { name: 'POI 1', x: -0.2331430912, y: -0.1461470127, yaw: 0.016972 },
+  { name: 'POI 2', x: 1.3269164562, y: -1.8839069605, yaw: 1.412 },
+  { name: 'POI 3', x: 0.6707067489, y: 3.3324773312, yaw: -1.146 },
+  { name: 'POI 4', x: 1.4199357033, y: -1.6782555580, yaw: 1.608 },
 ];
 
 // Fetch POIs from ROS topic
@@ -479,7 +481,7 @@ export function useNavigateToPose() {
         const actionClient = new ROSLIB.ActionClient({
           ros,
           serverName: ROS_CONFIG.actions.navigateToPose,
-          actionName: 'nav2_msgs/NavigateToPose'
+          actionName: 'nav2_msgs/action/NavigateToPose'
         });
 
         // Create goal
@@ -553,6 +555,65 @@ export function changeMap(mapName: string): Promise<void> {
         reject(new Error('Failed to change map'));
       }
     });
+  });
+}
+
+// Demo initial pose (from RViz /initialpose captured during setup)
+export const DEMO_INITIAL_POSE = {
+  x: -0.1869187355,
+  y: -0.1397080421,
+  yaw: 0.045868,
+};
+
+// Publish an initial pose to /initialpose (geometry_msgs/PoseWithCovarianceStamped)
+export function publishInitialPose(
+  x: number,
+  y: number,
+  yaw: number,
+  covariance: { covX?: number; covY?: number; covYaw?: number } = {}
+): Promise<void> {
+  const { covX = 0.25, covY = 0.25, covYaw = 0.06853891909122467 } = covariance;
+
+  return new Promise((resolve, reject) => {
+    if (getConnectionState() !== 'connected') {
+      reject(new Error('Not connected'));
+      return;
+    }
+
+    try {
+      const topic = new ROSLIB.Topic({
+        ros,
+        name: '/initialpose',
+        messageType: 'geometry_msgs/PoseWithCovarianceStamped',
+      });
+
+      // 6x6 covariance flattened row-major (36 entries)
+      const cov = Array(36).fill(0);
+      cov[0] = covX;   // x
+      cov[7] = covY;   // y
+      cov[35] = covYaw; // yaw
+
+      const msg = new ROSLIB.Message({
+        header: { frame_id: 'map' },
+        pose: {
+          pose: {
+            position: { x, y, z: 0 },
+            orientation: {
+              x: 0,
+              y: 0,
+              z: Math.sin(yaw / 2),
+              w: Math.cos(yaw / 2),
+            },
+          },
+          covariance: cov,
+        },
+      });
+
+      topic.publish(msg);
+      resolve();
+    } catch (e: any) {
+      reject(new Error(e?.message || 'Failed to publish initial pose'));
+    }
   });
 }
 
