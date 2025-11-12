@@ -17,6 +17,7 @@ export const ROS_CONFIG = {
     map: '/map',
     mapMetadata: '/map_metadata',
     pois: '/pois',
+    availableMaps: '/available_maps',
     imuRpy: '/imu/rpy/filtered',
     jointStates: '/joint_states',
     diagnostics: '/diagnostics',
@@ -34,6 +35,7 @@ export const ROS_CONFIG = {
     camera: 'sensor_msgs/Image',
     map: 'nav_msgs/OccupancyGrid',
     mapMetadata: 'nav_msgs/MapMetaData',
+    availableMaps: 'std_msgs/String',
     // POIs now published by system_topics as interfaces/Points (fallbacks handled in hooks)
     pois: 'interfaces/Points',
     imuRpy: 'geometry_msgs/Vector3Stamped', // Roll, Pitch, Yaw

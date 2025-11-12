@@ -5,10 +5,11 @@ import { useRosConnection } from '../ros/hooks'
 export function TeleopBlock() {
   const { connected } = useRosConnection()
 
-  // Max speeds; UI slider scales these
-  const MAX_LIN = 0.7
-  const MAX_ANG = 1.4
-  const [scale, setScale] = useState(0.5) // 50% by default
+  // Max speeds (typical safe defaults; adjust per robot)
+  const MAX_LIN = 0.8
+  const MAX_ANG = 1.5
+  const [linSet, setLinSet] = useState(0.3)
+  const [angSet, setAngSet] = useState(1.0)
 
   const held = useRef({ vx: 0, wz: 0 })
   const intervalRef = useRef<number | null>(null)
@@ -47,25 +48,24 @@ export function TeleopBlock() {
     fn()
   }
 
-  const lin = () => MAX_LIN * scale
-  const ang = () => MAX_ANG * scale
+  const lin = () => Math.max(0, Math.min(MAX_LIN, linSet))
+  const ang = () => Math.max(0, Math.min(MAX_ANG, angSet))
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-base font-medium text-blue-800">Teleop</div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-600">Speed</label>
-          <input
-            type="range"
-            min={0.1}
-            max={1}
-            step={0.05}
-            value={scale}
-            onChange={(e) => setScale(parseFloat(e.target.value))}
-            className="w-32"
-          />
-          <span className="text-xs text-slate-600 w-10 text-right">{Math.round(scale * 100)}%</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-slate-600">Linear (m/s)</label>
+            <input type="range" min={0} max={MAX_LIN} step={0.05} value={linSet} onChange={(e)=>setLinSet(parseFloat(e.target.value))} className="w-28" />
+            <span className="text-xs text-slate-600 w-10 text-right">{lin().toFixed(2)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-slate-600">Angular (rad/s)</label>
+            <input type="range" min={0} max={MAX_ANG} step={0.05} value={angSet} onChange={(e)=>setAngSet(parseFloat(e.target.value))} className="w-28" />
+            <span className="text-xs text-slate-600 w-10 text-right">{ang().toFixed(2)}</span>
+          </div>
         </div>
       </div>
 
@@ -131,9 +131,7 @@ export function TeleopBlock() {
         <div />
       </div>
 
-      <div className="text-[11px] text-slate-500">
-        Max lin {MAX_LIN.toFixed(1)} m/s, ang {MAX_ANG.toFixed(1)} rad/s; scaled by slider.
-      </div>
+      <div className="text-[11px] text-slate-500">Max lin {MAX_LIN.toFixed(1)} m/s, ang {MAX_ANG.toFixed(1)} rad/s.</div>
     </div>
   )
 }

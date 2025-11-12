@@ -1,10 +1,9 @@
 import { Header } from './components/Header'
 import { Controls } from './components/Controls'
-import VideoFeed from './components/VideoFeed'
 import { MapView } from './components/MapView'
 import { TelemetryPanel } from './components/TelemetryPanel'
 import { DebugPanel } from './components/DebugPanel'
-import { DebugLog } from './components/DebugLog'
+import VideoFeed from './components/VideoFeed'
 import { useRosConnection, useCmdVel, useNavigateToPose, PointOfInterest } from './ros/hooks'
 
 export default function App() {
@@ -34,11 +33,10 @@ export default function App() {
       <main className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
           <MapView />
-          <VideoFeed />
-          <DebugLog />
           <DebugPanel />
         </div>
         <div className="lg:col-span-1 space-y-4">
+          <VideoFeed />
           <Controls
             goToLab={goToLab}
             onStop={stop}

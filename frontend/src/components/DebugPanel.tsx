@@ -1,4 +1,5 @@
 import { TeleopBlock } from './TeleopBlock'
+import { DebugLog } from './DebugLog'
 
 export function DebugPanel() {
   return (
@@ -8,8 +9,10 @@ export function DebugPanel() {
         <div className="rounded-lg border-2 border-blue-300 bg-white p-4">
           <TeleopBlock />
         </div>
+        <div className="rounded-lg border-2 border-blue-300 bg-white p-2">
+          <DebugLog />
+        </div>
       </div>
     </section>
   )
 }
-

@@ -613,6 +613,40 @@ export function useNavigateToPose() {
 // Service to change map (for debug panel)
 // map change service removed; handled by bringup/nav stack
 
+// Subscribe to list of available maps from /available_maps (std_msgs/String JSON array)
+export function useAvailableMaps(): string[] {
+  const [maps, setMaps] = useState<string[]>([]);
+  const connectionState = useConnectionWatcher();
+
+  useEffect(() => {
+    if (connectionState !== 'connected') {
+      setMaps([]);
+      return;
+    }
+
+    const topic = new ROSLIB.Topic({
+      ros,
+      name: ROS_CONFIG.topics.availableMaps,
+      messageType: ROS_CONFIG.messageTypes.availableMaps || 'std_msgs/String'
+    });
+
+    const handle = (msg: any) => {
+      try {
+        const str = typeof msg === 'string' ? msg : (typeof msg?.data === 'string' ? msg.data : '[]');
+        const parsed = JSON.parse(str);
+        if (Array.isArray(parsed)) setMaps(parsed.filter((x:any) => typeof x === 'string'));
+      } catch (e) {
+        console.error('Failed to parse available_maps:', e);
+      }
+    };
+
+    topic.subscribe(handle);
+    return () => { topic.unsubscribe(handle); };
+  }, [connectionState]);
+
+  return maps;
+}
+
 // Demo initial pose (from RViz /initialpose captured during setup)
 export const DEMO_INITIAL_POSE = {
   x: -0.1869187355,
