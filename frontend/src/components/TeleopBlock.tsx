@@ -6,8 +6,8 @@ export function TeleopBlock() {
   const { connected } = useRosConnection()
 
   // Max speeds (typical safe defaults; adjust per robot)
-  const MAX_LIN = 0.8
-  const MAX_ANG = 1.5
+  const MAX_LIN = 3.5
+  const MAX_ANG = 3.5
   const [linSet, setLinSet] = useState(0.3)
   const [angSet, setAngSet] = useState(1.0)
 

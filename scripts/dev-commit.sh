@@ -20,24 +20,22 @@ fi
 # Default message for the latest set of changes.
 # Note: This gets updated by the assistant whenever we change files.
 read -r -d '' DEFAULT_MSG <<'EOF'
-feat(ui): restore POI picker; Nav2 "Go"; natural-size camera
+feat(ui): map select via service; POIs via service; compact camera with maximize
 
 docs: rewrite guides for rosbridge + WVS + rosboard + system_topics
 
 chore(cleanup): remove unused backend + rclpy glue; add .gitignore; add stack test script
 
-chore(frontend): drop unused map services/hooks and RWT config; keep Nav2 action
+chore(teleop): linear/angular sliders for cmd_vel (no generic scaler)
 
 Details:
-- Controls: re-add POI dropdown populated from /pois; Go sends Nav2 goal
-- VideoFeed: size to natural image; keep WVS fallback
-- MapView: remove map dropdown; keep map/robot/POIs render
-- Hooks/Config: align POIs to interfaces/Points; flexible JSON/array parsing
+- Controls: Map dropdown from /available_maps; calls /system/map/select; POIs via /system/map/pois
+- VideoFeed: compact above Controls; modal maximize; WVS fallback retained
+- Debug: DebugLog embedded in DebugPanel
+- Hooks/Config: add services.systemMapSelect/systemMapPois; new useAvailableMaps; usePoisForMap with service + topic fallback
 - Remove: backend/, ros_interface/, robot_control/, scripts/start_robot.sh,
           scripts/requirements.txt, scripts/test_connection.sh (obsolete)
 - Add: .gitignore; scripts/test_robot_stack.sh (checks rosbridge/WVS/rosboard)
-- Docs: refresh README, ARCHITECTURE, CONNECTION_GUIDE, HOSTNAME_AND_SERVE,
-        RASPBERRY_PI_SETUP, ROBOT_SETUP, FRONTEND_DOCUMENTATION, REFACTORING_NOTES
 EOF
 
 COMMIT_MSG=${USER_MSG:-$DEFAULT_MSG}

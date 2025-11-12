@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { useRobotState, usePointsOfInterest, PointOfInterest, useAvailableMaps } from '../ros/hooks'
+import ROSLIB from 'roslib'
+import { ros } from '../ros/ros'
+import { ROS_CONFIG } from '../ros/config'
 
 type Props = {
   goToLab: (poi: PointOfInterest) => void
@@ -9,7 +12,7 @@ type Props = {
 
 export function Controls({ goToLab, onStop, disabledMove }: Props) {
   const robotState = useRobotState()
-  const pois = usePointsOfInterest()
+  const pois = usePointsOfInterest(selectedMap)
   const maps = useAvailableMaps()
   const [selectedPoi, setSelectedPoi] = useState<string>('')
   const [selectedMap, setSelectedMap] = useState<string>('')
@@ -35,7 +38,25 @@ export function Controls({ goToLab, onStop, disabledMove }: Props) {
                 hasMaps ? 'border-blue-300 bg-white text-blue-900 hover:border-blue-400' : 'border-gray-300 bg-gray-100 text-gray-400'
               }`}
               value={selectedMap}
-              onChange={(e) => setSelectedMap(e.target.value)}
+              onChange={async (e) => {
+                const name = e.target.value
+                setSelectedMap(name)
+                try {
+                  const service = new ROSLIB.Service({
+                    ros,
+                    name: ROS_CONFIG.services.systemMapSelect,
+                    serviceType: 'interfaces/SetString'
+                  })
+                  const req = new ROSLIB.ServiceRequest({ data: name })
+                  await new Promise<void>((resolve, reject) => {
+                    service.callService(req, (result: any) => {
+                      if (result?.success !== false) resolve(); else reject(new Error(result?.message || 'failed'))
+                    }, (err: any) => reject(err))
+                  })
+                } catch (err) {
+                  console.error('Map select failed', err)
+                }
+              }}
               disabled={!hasMaps}
               title={hasMaps ? 'Select a map' : 'No maps available'}
             >

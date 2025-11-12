@@ -25,6 +25,10 @@ export const ROS_CONFIG = {
     robotState: '/robot/state', // 'idle', 'responding_to_command', 'heading_to_charger'
     rosout: '/rosout',
   },
+  services: {
+    systemMapSelect: '/system/map/select',
+    systemMapPois: '/system/map/pois',
+  },
   actions: {
     navigateToPose: '/navigate_to_pose',
   },
