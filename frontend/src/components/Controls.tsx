@@ -12,10 +12,10 @@ type Props = {
 
 export function Controls({ goToLab, onStop, disabledMove }: Props) {
   const robotState = useRobotState()
-  const pois = usePointsOfInterest(selectedMap)
   const maps = useAvailableMaps()
   const [selectedPoi, setSelectedPoi] = useState<string>('')
   const [selectedMap, setSelectedMap] = useState<string>('')
+  const pois = usePointsOfInterest(selectedMap)
   const selectedPoiData = pois.find(p => `${p.x},${p.y}` === selectedPoi)
   const hasPois = pois.length > 0
   const hasMaps = maps.length > 0
