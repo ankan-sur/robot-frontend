@@ -93,3 +93,8 @@ If you serve the UI at `http://fordward.local`, it will connect to:
 
 No `.env` changes are required. If ports differ, set env overrides in `frontend/.env`.
 
+## 5) Useful URLs
+
+- Rosboard: `http://fordward.local:8888`
+- Camera (viewer): `http://fordward.local:8080/stream_viewer?topic=/ascamera/camera_publisher/rgb0/image`
+- Camera (mjpeg): `http://fordward.local:8080/stream?topic=/ascamera/camera_publisher/rgb0/image&type=mjpeg`

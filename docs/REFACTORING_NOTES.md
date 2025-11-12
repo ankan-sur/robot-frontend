@@ -1,6 +1,6 @@
 # Refactoring Notes
 
-This document describes the changes made to refactor the architecture to use rosbridge_websocket.
+This document summarizes the transition to a frontend‑only UI that talks directly to ROS 2 via rosbridge_websocket, plus the latest tweaks (POI picker restored and aligned to system topics).
 
 ## Summary of Changes
 
@@ -16,27 +16,17 @@ This document describes the changes made to refactor the architecture to use ros
    - `hooks.ts` - React hooks for ROS topics (useOdom, useBattery, useCmdVel, useRosConnection)
 
 3. **Updated components**
-   - `App.tsx` - Now uses ROS hooks instead of FastAPI WebSocket
-   - `VideoFeed.tsx` - Uses web_video_server instead of backend endpoint
-   - `MapView.tsx` - Displays robot position from odometry
-   - `Controls.tsx` - Updated to use ROS cmd_vel directly
+   - `App.tsx` - Uses ROS hooks; passes Nav2 `goToLab` to Controls
+   - `VideoFeed.tsx` - Uses web_video_server; sizes to natural image
+   - `MapView.tsx` - Renders `/map` + robot pose + POIs overlay
+   - `Controls.tsx` - Restored POI dropdown (from `/pois`) and "Go"; Stop publishes zero `cmd_vel`
 
-4. **Updated environment configuration** (`env.example`)
-   - Changed from API base URL to ROS bridge and video server URLs
-   - Uses `fordward.local` hostname instead of IP addresses
+4. **Configuration**
+   - UI autodetects host for rosbridge/video/rosboard; `.env` overrides optional
 
-### Backend Changes
+### Backend
 
-1. **Removed ROS2 dependency** (`backend/main.py`)
-   - Removed `rclpy` imports
-   - Removed `ros_interface.ros_node` usage
-   - Removed `/move`, `/stop`, `/ws/telemetry` endpoints (frontend uses ROS directly)
-   - Kept `/health` and `/config` endpoints for system monitoring
-
-2. **Updated requirements** (`requirements.txt`)
-   - Removed rclpy note (ROS2 runs in Docker now)
-   - Added `httpx` for health checks
-   - Added optional `roslibpy` note if backend needs ROS access
+- No backend required for normal operation. A minimal FastAPI stub remains but is not used by the UI.
 
 ### Files No Longer Used
 
@@ -53,15 +43,11 @@ This document describes the changes made to refactor the architecture to use ros
    npm install
    ```
 
-2. **Add rosbridge to Docker container**:
-   - Update your `bringup.launch.py` to include rosbridge_websocket and web_video_server
-   - See `ros_launch/bringup_with_rosbridge.launch.py` for example
+2. **Bringup**:
+   - Include rosbridge_websocket (9090), web_video_server (8080), rosboard (8888), and your `system_topics` node in bringup.
 
-3. **Create frontend/.env file**:
-   ```bash
-   VITE_ROSBRIDGE_URL=ws://fordward.local:9090
-   VITE_VIDEO_BASE=http://fordward.local:8080
-   ```
+3. **Environment**:
+   - `.env` optional; defaults target current host. Set if ports differ.
 
 4. **Test battery topic message type**:
    ```bash
@@ -78,18 +64,9 @@ This document describes the changes made to refactor the architecture to use ros
 
 ## Breaking Changes
 
-- Frontend no longer connects to FastAPI WebSocket
-- Backend `/move` and `/stop` endpoints removed (use ROS cmd_vel directly)
-- Environment variables changed (VITE_API_BASE → VITE_ROSBRIDGE_URL, VITE_VIDEO_BASE)
+- Frontend no longer relies on FastAPI or `VITE_API_BASE`.
+- Map chooser removed from UI (map still rendered; switching handled externally for now).
 
 ## Migration Path
 
-If you need to keep the old API endpoints for backward compatibility:
-
-1. Install `roslibpy` in backend
-2. Create a ROS client that connects to rosbridge
-3. Publish to `/cmd_vel` via rosbridge instead of rclpy
-4. Keep the `/move` and `/stop` endpoints as wrappers
-
-See `docs/ARCHITECTURE.md` for more details.
-
+If a backend is ever needed again, prefer `roslibpy` to talk to rosbridge from Python. See `docs/ARCHITECTURE.md`.

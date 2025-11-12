@@ -5,12 +5,28 @@ import { MapView } from './components/MapView'
 import { TelemetryPanel } from './components/TelemetryPanel'
 import { DebugPanel } from './components/DebugPanel'
 import { DebugLog } from './components/DebugLog'
-import { useRosConnection, useCmdVel } from './ros/hooks'
+import { useRosConnection, useCmdVel, useNavigateToPose, PointOfInterest } from './ros/hooks'
 
 export default function App() {
   const { connected } = useRosConnection();
   const { stop } = useCmdVel();
-  // Navigation to POIs removed from UI per request
+  const { navigate } = useNavigateToPose();
+
+  // Navigate to POI using Nav2
+  const goToLab = async (poi: PointOfInterest) => {
+    if (!connected) {
+      alert('Not connected to ROS');
+      return;
+    }
+
+    try {
+      await navigate(poi.x, poi.y, poi.yaw || 0);
+      console.log(`Navigated to ${poi.name}`);
+    } catch (error: any) {
+      console.error('Navigation error:', error);
+      alert(`Navigation failed: ${error.message}`);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-slate-100">
@@ -23,7 +39,11 @@ export default function App() {
           <DebugPanel />
         </div>
         <div className="lg:col-span-1 space-y-4">
-          <Controls onStop={stop} disabledMove={!connected} />
+          <Controls
+            goToLab={goToLab}
+            onStop={stop}
+            disabledMove={!connected}
+          />
           <TelemetryPanel />
         </div>
       </main>

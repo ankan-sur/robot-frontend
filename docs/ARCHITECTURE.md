@@ -1,210 +1,66 @@
-# HFH Robot Architecture (Refactored)
+# HFH Robot Architecture
 
-## Overview
+Overview
+- Browser UI connects directly to ROS 2 via rosbridge_websocket (no backend required in normal operation).
+- Video streams via web_video_server (WVS).
+- System/meta topics (maps, POIs, state, clients) are provided by a `system_topics` ROS 2 node.
+- Rosboard provides system introspection (graphs, topics, params) for debugging.
 
-This architecture separates ROS2 from the backend API, using rosbridge_websocket as the bridge between the web frontend and ROS2 topics running in a Docker container.
-
+Topology
 ```
-┌─────────────────────────────────────────┐
-│  Docker Container (--net=host)           │
-│  ├─ ROS2 (bringup.launch.py)            │
-│  │  ├─ /cmd_vel                          │
-│  │  ├─ /odom                             │
-│  │  ├─ /ros_robot_controller/battery     │
-│  │  └─ /ascamera/camera_publisher/rgb0/image │
-│  ├─ rosbridge_websocket (port 9090)     │
-│  └─ web_video_server (port 8080)        │
-└─────────────────────────────────────────┘
-         ↑                    ↑
-         │                    │
-    Frontend              Backend (optional)
-  (roslib.js)           (roslibpy if needed)
-```
-
-## Key Components
-
-### Frontend (`frontend/`)
-- **Technology**: React + TypeScript + Vite
-- **ROS Connection**: Uses `roslib` to connect to `rosbridge_websocket` at `ws://fordward.local:9090`
-- **Topics Used**:
-  - `/cmd_vel` - Send movement commands (geometry_msgs/Twist)
-  - `/odom` - Receive position/odometry (nav_msgs/Odometry)
-  - `/ros_robot_controller/battery` - Battery status
-  - `/ascamera/camera_publisher/rgb0/image` - Camera feed (via web_video_server)
-
-### Backend (`backend/`)
-- **Technology**: FastAPI
-- **Purpose**: Optional REST API for configuration and health checks
-- **ROS Access**: None (ROS2 runs in Docker, frontend connects directly via rosbridge)
-- **Note**: If backend needs ROS access, use `roslibpy` (NOT `rclpy`)
-
-### ROS2 Docker Container
-- **Network**: `--net=host` (allows access to host network)
-- **Launch**: `ros2 launch bringup bringup.launch.py`
-- **Additional Services**:
-  - `rosbridge_websocket` on port 9090
-  - `web_video_server` on port 8080
-
-## Setup Instructions
-
-### 1. Install Frontend Dependencies
-
-```bash
-cd frontend
-npm install
+┌──────────────────────────────────────────────┐
+│ Robot (ROS 2)                                │
+│  ├─ bringup (your stack)                     │
+│  │   ├─ nav2, tf, sensors, camera, etc.      │
+│  │   ├─ system_topics (UI/system feeds)      │
+│  │   ├─ rosbridge_websocket (WS 9090)        │
+│  │   ├─ web_video_server (HTTP 8080)         │
+│  │   └─ rosboard (HTTP 8888)                 │
+└───────────────↑──────────────────────────────┘
+                │
+        roslib.js over WS
+                │
+┌───────────────┴──────────────────────────────┐
+│ Frontend (React + TS + Vite)                 │
+│  ├─ connects to ws://<host>:9090             │
+│  ├─ renders /map + POIs + robot pose         │
+│  ├─ embeds camera via WVS                    │
+│  └─ sends Nav2 goals, cancel requests        │
+└──────────────────────────────────────────────┘
 ```
 
-### 2. Configure Environment
+Key topics and services
+- Map: `/map` (`nav_msgs/OccupancyGrid`, transient local QoS)
+- POIs: `/pois` (`interfaces/Points`, pixel coordinates for overlays)
+- Robot state: `/robot/state` (`std_msgs/String`)
+- Nav2 status: `/navigate_to_pose/status` (`action_msgs/GoalStatusArray`)
+- Clients: `/connected_clients` (`std_msgs/String` JSON), `/client_count` (`std_msgs/Int32`)
+- Camera: `/ascamera/camera_publisher/rgb0/image` (`sensor_msgs/Image`) via WVS
+- CmdVel: `/cmd_vel` (`geometry_msgs/Twist`) for manual/safety stop
+- Cancel navigation service: `/navigate_to_pose/cancel` (`action_msgs/CancelGoal`)
 
-Create `frontend/.env`:
+Frontend defaults
+- Host autodetect: UI derives `rosbridgeUrl`, `videoBase`, and `rosboard` from `window.location.hostname`.
+- See `frontend/src/ros/config.ts:10` for topic names and types.
 
-```bash
-VITE_ROSBRIDGE_URL=ws://fordward.local:9090
-VITE_VIDEO_BASE=http://fordward.local:8080
-```
+Coordinate handling (POIs)
+- POIs are provided in pixel coordinates matching map image.
+- Convert to world coordinates for Nav2 goals using `map.info.origin` and `map.info.resolution`:
+  - `x_world = origin.x + (px + 0.5) * resolution`
+  - `y_world = origin.y + (height - py - 0.5) * resolution`
 
-### 3. Add rosbridge to Docker Container
+Bringup notes
+- rosbridge: `rosbridge_server/rosbridge_websocket` on 9090, address `0.0.0.0`.
+- WVS: `web_video_server` on 8080.
+- Rosboard: `rosboard` on 8888.
+- System topics: launch your `system_topics` node with parameters for available maps, connected clients, robot state, and POIs.
 
-Update your `bringup.launch.py` or create a new launch file:
+Development workflow
+- `cd frontend && npm install && npm run dev -- --host`
+- Open `http://fordward.local:5173` (or robot IP) to connect.
 
-```python
-from launch import LaunchDescription
-from launch_ros.actions import Node
-
-def generate_launch_description():
-    return LaunchDescription([
-        # Your existing bringup nodes...
-        
-        # Add rosbridge_websocket
-        Node(
-            package='rosbridge_server',
-            executable='rosbridge_websocket',
-            name='rosbridge_websocket',
-            parameters=[{
-                'port': 9090,
-                'address': '0.0.0.0',
-            }],
-            output='screen'
-        ),
-        
-        # Add web_video_server
-        Node(
-            package='web_video_server',
-            executable='web_video_server',
-            name='web_video_server',
-            parameters=[{
-                'port': 8080,
-            }],
-            output='screen'
-        ),
-    ])
-```
-
-### 4. Build Frontend
-
-```bash
-cd frontend
-npm run build
-```
-
-### 5. Run Frontend (Development)
-
-```bash
-cd frontend
-npm run dev
-```
-
-## Topics Reference
-
-Check message types:
-
-```bash
-# On robot (in Docker or host)
-ros2 topic info /ros_robot_controller/battery
-ros2 topic info /odom
-ros2 topic info /cmd_vel
-ros2 topic info /ascamera/camera_publisher/rgb0/image
-```
-
-Update `frontend/src/ros/config.ts` if message types differ.
-
-## Troubleshooting
-
-### Frontend Can't Connect to rosbridge
-
-1. Check rosbridge is running:
-   ```bash
-   ros2 topic list  # Should show topics
-   ```
-
-2. Check port 9090 is accessible:
-   ```bash
-   curl http://fordward.local:9090  # Should fail (not HTTP), but port should be open
-   ```
-
-3. Check firewall:
-   ```bash
-   sudo ufw allow 9090
-   ```
-
-### Video Not Showing
-
-1. Check web_video_server is running:
-   ```bash
-   curl http://fordward.local:8080/stream_viewer
-   ```
-
-2. Check camera topic is publishing:
-   ```bash
-   ros2 topic echo /ascamera/camera_publisher/rgb0/image --once
-   ```
-
-3. Verify video URL in browser:
-   ```
-   http://fordward.local:8080/stream?topic=/ascamera/camera_publisher/rgb0/image&type=webp
-   ```
-
-### Battery Topic Message Type
-
-If battery topic uses a different message type, update:
-
-1. Check actual type:
-   ```bash
-   ros2 topic info /ros_robot_controller/battery
-   ```
-
-2. Update `frontend/src/ros/config.ts`:
-   ```typescript
-   messageTypes: {
-     battery: 'std_msgs/UInt8',  // or whatever type it is
-   }
-   ```
-
-3. Update `frontend/src/ros/hooks.ts` to extract the correct field from the message.
-
-## Migration Notes
-
-### What Changed
-
-1. **Removed**: `rclpy` dependency from backend
-2. **Removed**: `ros_interface/ros_node.py` usage
-3. **Added**: `roslib` for frontend ROS connection
-4. **Added**: `rosbridge_websocket` in Docker container
-5. **Added**: `web_video_server` for camera streaming
-6. **Changed**: Frontend now connects directly to ROS via rosbridge
-7. **Changed**: All references from IP addresses to `fordward.local` hostname
-
-### Backward Compatibility
-
-The old FastAPI endpoints (`/move`, `/stop`, `/status`) are removed. If you need them:
-- Use `roslibpy` in backend to publish to `/cmd_vel` via rosbridge
-- Or keep the old endpoints as wrappers around roslibpy
-
-## Next Steps
-
-1. Test rosbridge connection from frontend
-2. Verify battery topic message type and update if needed
-3. Implement proper navigation (Nav2 action client) instead of simple cmd_vel
-4. Add error handling and reconnection logic
-5. Add map visualization using /map topic (if available)
-
+Troubleshooting
+- rosbridge connection: ensure 9090 open; `sudo ufw allow 9090` if needed.
+- Video: `http://<host>:8080/stream_viewer?topic=...` should render.
+- Rosboard: `http://<host>:8888` loads and lists topics.
+- Missing topics: verify `system_topics` and bringup are running; check with `ros2 topic list`.

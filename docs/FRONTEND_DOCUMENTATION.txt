@@ -113,17 +113,10 @@ App
   - Used by: TelemetryPanel
   - Display: Visual indicator with pressed/released status
 
-/robot_state (std_msgs/String) [NEW - REQUIRES IMPLEMENTATION]
-  - Robot operational state: "idle", "responding_to_command", "heading_to_charger"
-  - Used by: Controls, TelemetryPanel
-  - Display: State badge with color coding and current command
-  - Normalization: Accepts variations like "idle_state", "responding", etc.
-
-/current_command (std_msgs/String) [NEW - REQUIRES IMPLEMENTATION]
-  - Current destination/command being executed
+/robot/state (std_msgs/String)
+  - Robot operational state: "idle", "navigating", "error", etc.
   - Used by: TelemetryPanel
-  - Display: Shown below robot state when active
-  - Format: Any string describing the current command (e.g., "Lab 3", "Charging Station")
+  - Normalization handled in useRobotState()
 
 /joint_states (sensor_msgs/JointState)
   - Servo/joint positions, velocities, efforts
@@ -135,10 +128,10 @@ App
   - Used by: MapView
   - Display: Canvas-based map with robot position overlay
 
-/pois (std_msgs/String)
-  - Points of Interest (JSON array)
-  - Used by: Controls
-  - Format: JSON array of {name, x, y, yaw?} objects
+/pois (interfaces/Points)
+  - Points of Interest in pixel coordinates for UI overlays
+  - Used by: Controls (picker), MapView (overlay)
+  - Accepts multiple formats (JSON string/std_msgs/String or structured arrays); normalized in usePointsOfInterest()
 
 3.2 PUBLISHED TOPICS (Writing to ROS)
 -------------------------------------
@@ -151,15 +144,9 @@ App
 3.3 SERVICES
 ------------
 
-/change_map (std_srvs/SetString)
-  - Change the active navigation map
-  - Used by: DebugPanel
-  - Request: Map name string
-
-/list_maps (std_srvs/Empty)
-  - List available maps
-  - Used by: DebugPanel (useAvailableMaps hook)
-  - Response: Array of map names (structure may vary)
+/navigate_to_pose/cancel (action_msgs/CancelGoal)
+  - Cancel active Nav2 goal(s)
+  - Provide goal_id(s) from /navigate_to_pose/status; if none, cancel all
 
 3.4 ACTIONS
 -----------
@@ -197,16 +184,14 @@ Features:
 Location: frontend/src/components/Controls.tsx
 Purpose: Robot navigation and stop controls
 Features:
-- Destination selector (dropdown of POIs)
-- "Go" button to navigate to selected destination
-- "Stop" button (only enabled when robot is responding to command)
-- Control permission indicator
-- State-aware: Stop button disabled when robot is idle or heading to charger
+- Destination selector (dropdown of POIs from /pois)
+- "Go" button sends Nav2 goal (pixel→world conversion based on /map)
+- "Stop" button always available as safety (publishes zero cmd_vel)
 
 Key Logic:
-- Stop button enabled only when robotState === 'responding_to_command'
-- Uses useRobotState hook to determine button state
-- Gradient button styling (purple → pink for Go, orange → red for Stop)
+- Uses usePointsOfInterest() and useNavigateToPose()
+- Converts selected POI from pixel to map coordinates using map.info
+- Stop publishes zero cmd_vel and cancels drift with auto-stop timer
 
 4.3 TELEMETRY PANEL
 -------------------
@@ -253,24 +238,17 @@ Location: frontend/src/components/MapView.tsx
 Purpose: Visualize navigation map and robot position
 Features:
 - Occupancy grid rendering on HTML5 canvas
-- Robot position overlay (purple triangle)
-- Direction indicator (pink line)
-- Position coordinates display
-- Color scheme:
-  * Unknown: Gray
-  * Free: White
-  * Occupied: Black
-  * Robot: Purple triangle with pink direction line
+- Robot pose overlay (triangle)
+- POIs overlay from /pois (pixel coordinates)
+- Color scheme: Unknown (gray), Free (white), Occupied (black)
 
 4.5 VIDEO FEED
 --------------
 Location: frontend/src/components/VideoFeed.tsx
 Purpose: Display live camera stream
 Features:
-- WebP image stream from web_video_server
-- Error handling with fallback message
-- Gradient background (violet → purple)
-- Auto-refresh via image src
+- Uses web_video_server stream; falls back to stream_viewer link if MJPEG fails
+- Sizes to the natural image dimensions (fits content)
 
 4.6 DEBUG PANEL
 ---------------
@@ -405,8 +383,7 @@ All ROS data is managed through custom React hooks in frontend/src/ros/hooks.ts:
 - useOdom() - Odometry data
 - useIMURPY() - IMU orientation
 - useButton() - Button state
-- useRobotState() - Robot operational state (NEW)
-- useCurrentCommand() - Current command/destination (NEW)
+- useRobotState() - Robot operational state
 - useJointStates() - Joint positions (available, not displayed)
 - useMap() - Occupancy grid map
 - usePointsOfInterest() - POI list
@@ -437,8 +414,8 @@ All ROS data is managed through custom React hooks in frontend/src/ros/hooks.ts:
 File: frontend/src/ros/config.ts
 
 Environment Variables:
-- VITE_ROSBRIDGE_URL: WebSocket URL (default: ws://fordward.local:9090)
-- VITE_VIDEO_BASE: Video server URL (default: http://fordward.local:8080)
+- VITE_ROSBRIDGE_URL: WebSocket URL (default auto from host → ws://<host>:9090)
+- VITE_VIDEO_BASE: Video server URL (default auto from host → http://<host>:8080)
 
 Topic Configuration:
 - All topics, services, and actions are centrally defined
@@ -491,10 +468,9 @@ npm install
 
 10.2 DEVELOPMENT
 ----------------
-npm run dev
-- Starts Vite dev server on http://localhost:5173
-- Hot module replacement enabled
-- Accessible on network if configured
+npm run dev -- --host
+- Starts Vite dev server on http://<host>:5173 (LAN-accessible)
+- Open http://fordward.local:5173 when running on robot network
 
 10.3 BUILD
 ----------
@@ -712,4 +688,3 @@ For questions or issues, refer to:
 
 Last Updated: 2024
 Version: 1.0.0
-

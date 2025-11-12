@@ -475,20 +475,61 @@ export function usePointsOfInterest(): PointOfInterest[] {
     
     const handleMessage = (msg: any) => {
       try {
-        let parsed: PointOfInterest[] = [];
-        if (typeof msg === 'string') {
-          parsed = JSON.parse(msg);
-        } else if (msg.data) {
-          parsed = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data;
-        } else if (Array.isArray(msg.pois)) {
-          parsed = msg.pois;
-        } else if (Array.isArray(msg)) {
-          parsed = msg;
+        const out: PointOfInterest[] = [];
+
+        // Case 1: JSON string in std_msgs/String
+        if (typeof msg === 'string' || typeof msg?.data === 'string') {
+          const str = typeof msg === 'string' ? msg : msg.data;
+          const parsed = JSON.parse(str);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((p: any, i: number) => {
+              if (p && typeof p === 'object') {
+                // Support {x,y,yaw,name} or nested point/position
+                const pt = p.point || p.position || p;
+                const x = Number(pt.x);
+                const y = Number(pt.y);
+                const yaw = p.yaw != null ? Number(p.yaw) : (pt.yaw != null ? Number(pt.yaw) : undefined);
+                out.push({ name: p.name || `POI ${i+1}`, x, y, yaw });
+              }
+            });
+          }
         }
 
-        if (Array.isArray(parsed)) {
-          setPois(parsed);
+        // Case 2: interfaces/Points or similar struct message
+        // Common shapes:
+        // - { points: [{x,y[,yaw][,name]}] }
+        // - { points: [{ point: {x,y}, yaw?, name? }] }
+        // - { pois: [...] }
+        const arr = Array.isArray(msg?.points) ? msg.points
+                  : Array.isArray(msg?.pois) ? msg.pois
+                  : Array.isArray(msg) ? msg
+                  : null;
+        if (arr) {
+          arr.forEach((p: any, i: number) => {
+            const base = p?.point || p?.position || p;
+            const x = Number(base?.x);
+            const y = Number(base?.y);
+            const yaw = p?.yaw != null ? Number(p.yaw) : (base?.yaw != null ? Number(base.yaw) : undefined);
+            if (!Number.isNaN(x) && !Number.isNaN(y)) {
+              out.push({ name: p?.name || `POI ${i+1}`, x, y, yaw });
+            }
+          });
         }
+
+        // Case 3: flattened numeric array [x1,y1,x2,y2,(yaw1?,yaw2?...)]
+        const dataArr: any = msg?.data ?? msg;
+        if (Array.isArray(dataArr)) {
+          // Try pairs
+          for (let i = 0; i + 1 < dataArr.length; i += 2) {
+            const x = Number(dataArr[i]);
+            const y = Number(dataArr[i + 1]);
+            if (!Number.isNaN(x) && !Number.isNaN(y)) {
+              out.push({ name: `POI ${(i/2)+1}`, x, y });
+            }
+          }
+        }
+
+        if (out.length > 0) setPois(out);
       } catch (error) {
         console.error('Failed to parse POIs:', error);
         setPois([]);

@@ -45,7 +45,8 @@ export const ROS_CONFIG = {
     camera: 'sensor_msgs/Image',
     map: 'nav_msgs/OccupancyGrid',
     mapMetadata: 'nav_msgs/MapMetaData',
-    pois: 'std_msgs/String', // Adjust based on actual POI message type
+    // POIs now published by system_topics as interfaces/Points (fallbacks handled in hooks)
+    pois: 'interfaces/Points',
     imuRpy: 'geometry_msgs/Vector3Stamped', // Roll, Pitch, Yaw
     jointStates: 'sensor_msgs/JointState',
     diagnostics: 'diagnostic_msgs/DiagnosticArray',
