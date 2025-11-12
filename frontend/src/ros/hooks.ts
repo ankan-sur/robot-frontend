@@ -467,95 +467,55 @@ export function usePoisForMap(mapName?: string): PointOfInterest[] {
       return;
     }
 
-    let unsub: (() => void) | null = null;
-
-    const tryService = () => {
-      return new Promise<void>((resolve, reject) => {
-        try {
-          const service = new ROSLIB.Service({
-            ros,
-            name: ROS_CONFIG.services.systemMapPois,
-            serviceType: 'interfaces/SetString'
-          });
-          const req = new ROSLIB.ServiceRequest({ data: mapName || '' });
-          service.callService(req, (result: any) => {
-            try {
-              const msgStr = result?.message || result?.data || result;
-              const parsed = typeof msgStr === 'string' ? JSON.parse(msgStr) : msgStr;
-              const list = parsed?.pois || parsed || [];
-              const out: PointOfInterest[] = [];
-              if (Array.isArray(list)) {
-                list.forEach((p: any, i: number) => {
-                  const base = p?.point || p?.position || p;
-                  const x = Number(base?.x);
-                  const y = Number(base?.y);
-                  const yaw = p?.yaw != null ? Number(p.yaw) : (base?.yaw != null ? Number(base.yaw) : undefined);
-                  if (!Number.isNaN(x) && !Number.isNaN(y)) {
-                    out.push({ name: p?.name || `POI ${i+1}`, x, y, yaw });
-                  }
-                });
-              }
-              setPois(out);
-              resolve();
-            } catch (e) {
-              reject(e);
-            }
-          }, (err: any) => reject(err));
-        } catch (e) {
-          reject(e);
-        }
-      });
+    // Prefer /system/map/info; fallback to /system/map/pois
+    const handleList = (list: any) => {
+      const out: PointOfInterest[] = [];
+      if (Array.isArray(list)) {
+        list.forEach((p: any, i: number) => {
+          const base = p?.point || p?.position || p;
+          const x = Number(base?.x);
+          const y = Number(base?.y);
+          const yaw = p?.yaw != null ? Number(p.yaw) : (base?.yaw != null ? Number(base.yaw) : undefined);
+          if (!Number.isNaN(x) && !Number.isNaN(y)) out.push({ name: p?.name || `POI ${i+1}`, x, y, yaw });
+        });
+      }
+      setPois(out);
     };
 
-    tryService().catch(() => {
-      // Fallback: subscribe to legacy /pois topic
-      const poisTopic = new ROSLIB.Topic({
-        ros,
-        name: ROS_CONFIG.topics.pois,
-        messageType: ROS_CONFIG.messageTypes.pois || 'std_msgs/String'
-      });
-      const handleMessage = (msg: any) => {
-        try {
-          const out: PointOfInterest[] = [];
-          const arr = Array.isArray(msg?.points) ? msg.points
-                    : Array.isArray(msg?.pois) ? msg.pois
-                    : Array.isArray(msg) ? msg
-                    : null;
-          if (arr) {
-            arr.forEach((p: any, i: number) => {
-              const base = p?.point || p?.position || p;
-              const x = Number(base?.x);
-              const y = Number(base?.y);
-              const yaw = p?.yaw != null ? Number(p.yaw) : (base?.yaw != null ? Number(base.yaw) : undefined);
-              if (!Number.isNaN(x) && !Number.isNaN(y)) {
-                out.push({ name: p?.name || `POI ${i+1}`, x, y, yaw });
-              }
-            });
-          } else if (typeof msg === 'string' || typeof msg?.data === 'string') {
-            const str = typeof msg === 'string' ? msg : msg.data;
-            const parsed = JSON.parse(str);
-            if (Array.isArray(parsed)) {
-              parsed.forEach((p: any, i: number) => {
-                const base = p?.point || p?.position || p;
-                const x = Number(base?.x);
-                const y = Number(base?.y);
-                const yaw = p?.yaw != null ? Number(p.yaw) : (base?.yaw != null ? Number(base.yaw) : undefined);
-                if (!Number.isNaN(x) && !Number.isNaN(y)) {
-                  out.push({ name: p?.name || `POI ${i+1}`, x, y, yaw });
-                }
-              });
-            }
+    const infoSvc = new ROSLIB.Service({ ros, name: ROS_CONFIG.services.systemMapInfo, serviceType: 'interfaces/SetString' });
+    const req = new ROSLIB.ServiceRequest({ data: mapName || '' });
+    infoSvc.callService(req, (res: any) => {
+      try {
+        const s = res?.message || res?.data || res;
+        const parsed = typeof s === 'string' ? JSON.parse(s) : s;
+        handleList(parsed?.pois || []);
+      } catch (e) {
+        console.error('map/info parse error', e);
+        const poisSvc = new ROSLIB.Service({ ros, name: ROS_CONFIG.services.systemMapPois, serviceType: 'interfaces/SetString' });
+        const req2 = new ROSLIB.ServiceRequest({ data: mapName || '' });
+        poisSvc.callService(req2, (res2: any) => {
+          try {
+            const s2 = res2?.message || res2?.data || res2;
+            const parsed2 = typeof s2 === 'string' ? JSON.parse(s2) : s2;
+            handleList(parsed2?.pois || parsed2 || []);
+          } catch {
+            setPois([]);
           }
-          setPois(out);
+        }, () => setPois([]));
+      }
+    }, () => {
+      const poisSvc = new ROSLIB.Service({ ros, name: ROS_CONFIG.services.systemMapPois, serviceType: 'interfaces/SetString' });
+      const req2 = new ROSLIB.ServiceRequest({ data: mapName || '' });
+      poisSvc.callService(req2, (res2: any) => {
+        try {
+          const s2 = res2?.message || res2?.data || res2;
+          const parsed2 = typeof s2 === 'string' ? JSON.parse(s2) : s2;
+          handleList(parsed2?.pois || parsed2 || []);
         } catch {
           setPois([]);
         }
-      };
-      poisTopic.subscribe(handleMessage);
-      unsub = () => poisTopic.unsubscribe(handleMessage);
+      }, () => setPois([]));
     });
-
-    return () => { if (unsub) try { unsub(); } catch {} };
   }, [connectionState, mapName]);
 
   return pois;

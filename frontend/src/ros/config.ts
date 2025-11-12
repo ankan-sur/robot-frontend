@@ -27,6 +27,7 @@ export const ROS_CONFIG = {
   },
   services: {
     systemMapSelect: '/system/map/select',
+    systemMapInfo: '/system/map/info',
     systemMapPois: '/system/map/pois',
   },
   actions: {
