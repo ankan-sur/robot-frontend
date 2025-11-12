@@ -8,6 +8,7 @@ export default function VideoFeed() {
   const viewerUrl = `${ROS_CONFIG.videoBase}/stream_viewer?topic=${safeTopic}`
   const [useViewer, setUseViewer] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null)
 
   return (
     <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
@@ -17,24 +18,30 @@ export default function VideoFeed() {
           {error}. Try the <a className="underline" href={viewerUrl} target="_blank" rel="noreferrer">stream viewer</a>.
         </div>
       )}
-      <div className="flex items-center justify-center min-h-64 bg-gradient-to-br from-slate-900 to-blue-900 rounded-lg border-2 border-blue-500 relative shadow-inner">
+      <div className="flex items-center justify-center bg-gradient-to-br from-slate-900 to-blue-900 rounded-lg border-2 border-blue-500 relative shadow-inner p-2">
         {!useViewer && (
           <img
             src={mjpegUrl}
             alt="HFH Robot Camera Feed"
-            className="max-h-64 w-auto rounded object-contain"
+            className="block rounded"
+            style={dims ? { width: `${dims.w}px`, height: `${dims.h}px` } : undefined}
             onError={() => {
               setUseViewer(true)
               setError('MJPEG stream unavailable, switching to HTML viewer…')
             }}
-            onLoad={() => setError(null)}
+            onLoad={(e) => {
+              const img = e.currentTarget
+              setDims({ w: img.naturalWidth, h: img.naturalHeight })
+              setError(null)
+            }}
           />
         )}
         {useViewer && (
           <iframe
             title="HFH Robot Camera Viewer"
             src={viewerUrl}
-            className="w-full h-64 rounded border-0"
+            className="rounded border-0"
+            style={dims ? { width: `${dims.w || 640}px`, height: `${dims.h || 480}px` } : { width: '640px', height: '480px' }}
           />
         )}
       </div>

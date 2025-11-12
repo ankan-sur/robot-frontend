@@ -456,22 +456,14 @@ export interface PointOfInterest {
   yaw?: number;
 }
 
-// Demo POIs hardcoded from RViz picks shared during setup
-const DEMO_POIS = [
-  { name: 'POI 1', x: -0.2331430912, y: -0.1461470127, yaw: 0.016972 },
-  { name: 'POI 2', x: 1.3269164562, y: -1.8839069605, yaw: 1.412 },
-  { name: 'POI 3', x: 0.6707067489, y: 3.3324773312, yaw: -1.146 },
-  { name: 'POI 4', x: 1.4199357033, y: -1.6782555580, yaw: 1.608 },
-];
-
 // Fetch POIs from ROS topic
 export function usePointsOfInterest(): PointOfInterest[] {
-  const [pois, setPois] = useState<PointOfInterest[]>(DEMO_POIS);
+  const [pois, setPois] = useState<PointOfInterest[]>([]);
   const connectionState = useConnectionWatcher();
 
   useEffect(() => {
     if (connectionState !== 'connected') {
-      setPois(DEMO_POIS);
+      setPois([]);
       return;
     }
 
@@ -494,14 +486,12 @@ export function usePointsOfInterest(): PointOfInterest[] {
           parsed = msg;
         }
 
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setPois(parsed);
-        } else {
-          setPois(DEMO_POIS);
         }
       } catch (error) {
         console.error('Failed to parse POIs:', error);
-        setPois(DEMO_POIS);
+        setPois([]);
       }
     };
 
@@ -664,16 +654,13 @@ export function publishInitialPose(
   });
 }
 
-// Fetch available maps from ROS service
-const DEMO_MAPS = ['map_lab_demo'];
-
 export function useAvailableMaps(): string[] {
-  const [maps, setMaps] = useState<string[]>(DEMO_MAPS);
+  const [maps, setMaps] = useState<string[]>([]);
   const connectionState = useConnectionWatcher();
 
   useEffect(() => {
     if (connectionState !== 'connected') {
-      setMaps(DEMO_MAPS);
+      setMaps([]);
       return;
     }
 
@@ -713,11 +700,11 @@ export function useAvailableMaps(): string[] {
         }
       } catch (error) {
         console.error('Failed to parse maps list:', error);
-        if (!cancelled) setMaps(DEMO_MAPS);
+        if (!cancelled) setMaps([]);
       }
     }, (error: any) => {
       console.error('Failed to list maps:', error);
-      if (!cancelled) setMaps(DEMO_MAPS);
+      if (!cancelled) setMaps([]);
     });
 
     const mapsTopic = new ROSLIB.Topic({
