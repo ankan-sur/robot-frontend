@@ -1,0 +1,18 @@
+# Frontend artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# Logs and caches
+npm-debug.log*
+yarn-error.log*
+.cache/
+
+# Python
+__pycache__/
+*.pyc
+
+# Editors/OS
+.vscode/
+.DS_Store
+Thumbs.db

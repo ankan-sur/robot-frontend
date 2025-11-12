@@ -611,30 +611,7 @@ export function useNavigateToPose() {
 }
 
 // Service to change map (for debug panel)
-export function changeMap(mapName: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (getConnectionState() !== 'connected') {
-      reject(new Error('Not connected'));
-      return;
-    }
-
-    const service = new ROSLIB.Service({
-      ros,
-      name: ROS_CONFIG.services.changeMap,
-      serviceType: 'std_srvs/SetString'
-    });
-
-    const request = new ROSLIB.ServiceRequest({ data: mapName });
-
-    service.callService(request, (result) => {
-      if (result.success) {
-        resolve();
-      } else {
-        reject(new Error('Failed to change map'));
-      }
-    });
-  });
-}
+// map change service removed; handled by bringup/nav stack
 
 // Demo initial pose (from RViz /initialpose captured during setup)
 export const DEMO_INITIAL_POSE = {
@@ -695,83 +672,4 @@ export function publishInitialPose(
   });
 }
 
-export function useAvailableMaps(): string[] {
-  const [maps, setMaps] = useState<string[]>([]);
-  const connectionState = useConnectionWatcher();
-
-  useEffect(() => {
-    if (connectionState !== 'connected') {
-      setMaps([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    const pushMaps = (list: unknown) => {
-      if (!Array.isArray(list)) return;
-      if (!cancelled) {
-        setMaps(list as string[]);
-      }
-    };
-
-    const service = new ROSLIB.Service({
-      ros,
-      name: ROS_CONFIG.services.listMaps,
-      serviceType: 'std_srvs/Trigger'
-    });
-
-    const request = new ROSLIB.ServiceRequest({});
-
-    service.callService(request, (result: any) => {
-      try {
-        if (Array.isArray(result?.maps)) {
-          pushMaps(result.maps);
-          return;
-        }
-        if (Array.isArray(result?.data)) {
-          pushMaps(result.data);
-          return;
-        }
-        if (typeof result?.message === 'string') {
-          pushMaps(JSON.parse(result.message));
-          return;
-        }
-        if (typeof result === 'string') {
-          pushMaps(JSON.parse(result));
-        }
-      } catch (error) {
-        console.error('Failed to parse maps list:', error);
-        if (!cancelled) setMaps([]);
-      }
-    }, (error: any) => {
-      console.error('Failed to list maps:', error);
-      if (!cancelled) setMaps([]);
-    });
-
-    const mapsTopic = new ROSLIB.Topic({
-      ros,
-      name: '/available_maps',
-      messageType: 'std_msgs/String'
-    });
-
-    const handleTopic = (msg: any) => {
-      try {
-        const parsed = typeof msg === 'string'
-          ? JSON.parse(msg)
-          : (msg?.data ? JSON.parse(msg.data) : []);
-        pushMaps(parsed);
-      } catch (error) {
-        console.error('Failed to parse maps from topic:', error);
-      }
-    };
-
-    mapsTopic.subscribe(handleTopic);
-
-    return () => {
-      cancelled = true;
-      mapsTopic.unsubscribe(handleTopic);
-    };
-  }, [connectionState]);
-
-  return maps;
-}
+// available maps handled via /available_maps directly in UI when needed

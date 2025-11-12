@@ -4,8 +4,7 @@ const defaultHost = typeof window !== 'undefined' && window.location?.hostname
 
 const defaultRosbridge = `ws://${defaultHost}:9090`;
 const defaultVideoBase = `http://${defaultHost}:8080`;
-const defaultRwtBase = `http://${defaultHost}:8001`;
-const defaultRosboard = `http://${defaultHost}:8888`;
+// Rosboard and RWT URLs can be added via env if needed
 
 export const ROS_CONFIG = {
   rosbridgeUrl: import.meta.env.VITE_ROSBRIDGE_URL || import.meta.env.VITE_ROSBRIDGE_FALLBACK_URL || defaultRosbridge,
@@ -25,18 +24,8 @@ export const ROS_CONFIG = {
     robotState: '/robot/state', // 'idle', 'responding_to_command', 'heading_to_charger'
     rosout: '/rosout',
   },
-  services: {
-    changeMap: '/change_map',
-    listMaps: '/list_maps',
-  },
   actions: {
     navigateToPose: '/navigate_to_pose',
-  },
-  rwt: {
-    map: import.meta.env.VITE_RWT_MAP_URL || `${import.meta.env.VITE_RWT_BASE || defaultRwtBase}/rwt/map`,
-    teleop: import.meta.env.VITE_RWT_TELEOP_URL || `${import.meta.env.VITE_RWT_BASE || defaultRwtBase}/rwt/teleop`,
-    image: import.meta.env.VITE_RWT_IMAGE_URL || `${import.meta.env.VITE_RWT_BASE || defaultRwtBase}/rwt/image`,
-    rosboard: import.meta.env.VITE_ROSBOARD_URL || defaultRosboard,
   },
   messageTypes: {
     cmdVel: 'geometry_msgs/Twist',

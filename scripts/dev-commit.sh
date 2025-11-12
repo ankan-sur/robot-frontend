@@ -24,13 +24,18 @@ feat(ui): restore POI picker; Nav2 "Go"; natural-size camera
 
 docs: rewrite guides for rosbridge + WVS + rosboard + system_topics
 
-chore(ros): set POIs type to interfaces/Points; robust parsing in hooks
+chore(cleanup): remove unused backend + rclpy glue; add .gitignore; add stack test script
+
+chore(frontend): drop unused map services/hooks and RWT config; keep Nav2 action
 
 Details:
 - Controls: re-add POI dropdown populated from /pois; Go sends Nav2 goal
 - VideoFeed: size to natural image; keep WVS fallback
 - MapView: remove map dropdown; keep map/robot/POIs render
 - Hooks/Config: align POIs to interfaces/Points; flexible JSON/array parsing
+- Remove: backend/, ros_interface/, robot_control/, scripts/start_robot.sh,
+          scripts/requirements.txt, scripts/test_connection.sh (obsolete)
+- Add: .gitignore; scripts/test_robot_stack.sh (checks rosbridge/WVS/rosboard)
 - Docs: refresh README, ARCHITECTURE, CONNECTION_GUIDE, HOSTNAME_AND_SERVE,
         RASPBERRY_PI_SETUP, ROBOT_SETUP, FRONTEND_DOCUMENTATION, REFACTORING_NOTES
 EOF
@@ -50,4 +55,3 @@ git commit -m "$COMMIT_MSG"
 
 echo "\nDone. Review with: git show --stat -1"
 echo "Push when ready: git push"
-
