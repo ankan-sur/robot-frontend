@@ -1,107 +1,73 @@
-import { useEffect, useState } from 'react'
-import { getMode, setMode, stopSlamAndSave as svcStopSlamAndSave, listMaps, cancelNavigation } from '../ros/services'
-import { topics } from '../ros/ros'
-import { useNavStatus } from '../ros/hooks'
-
-type ModeState = 'IDLE' | 'SLAM' | 'LOCALIZATION'
+import { useState } from 'react'
+import { setMode, cancelNavigation } from '../ros/services'
+import { useRobotState, useCmdVel, useNavStatus } from '../ros/hooks'
 
 export default function ModePanel() {
-  const [status, setStatus] = useState<{ state: ModeState }>({ state: 'IDLE' })
+  const robotState = useRobotState()
+  const { stop: emergencyStop } = useCmdVel()
+  const nav = useNavStatus()
+
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [scanSource, setScanSource] = useState<'raw' | 'filtered'>('raw') // placeholder for future param
 
-  const refresh = async () => {
+  const changeMode = async (mode: string) => {
+    setBusy(`Setting mode: ${mode}`)
+    setError(null)
     try {
-      const s = await getMode();
-      const mode = (s?.mode || '').toUpperCase() as ModeState
-      setStatus({ state: mode === 'SLAM' || mode === 'LOCALIZATION' ? mode : 'IDLE' })
-    } catch (e: any) { setError(e?.message || 'Failed to get mode') }
-  }
-
-  useEffect(() => {
-    refresh()
-    // Live updates from /mode_manager/status
-    const handle = (m: any) => {
-      try {
-        const raw = m?.data || m
-        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
-        const mode = (parsed?.mode || '').toUpperCase() as ModeState
-        setStatus({ state: mode === 'SLAM' || mode === 'LOCALIZATION' ? mode : 'IDLE' })
-      } catch {}
+      await setMode(mode)
+    } catch (e: any) {
+      setError(e?.message || `Failed to set mode to ${mode}`)
+    } finally {
+      setBusy(null)
     }
-    try { topics.modeStatus.subscribe(handle) } catch {}
-    return () => { try { topics.modeStatus.unsubscribe(handle) } catch {} }
-  }, [])
-
-  const doStartSlam = async () => {
-    setBusy('Starting SLAM…'); setError(null)
-    try { await setMode('slam'); await refresh() } catch (e: any) { setError(e?.message || 'Failed to start SLAM') } finally { setBusy(null) }
   }
-  const doSaveExit = async () => {
-    const name = (window.prompt('Map name (leave blank for timestamp):') || '').trim() || undefined
-    setBusy('Saving map…'); setError(null)
+
+  const handleEmergency = async () => {
+    setBusy('Emergency stop')
+    setError(null)
     try {
-      // Prefer combined service; fallback to setMode('idle') if unavailable
-      try { await svcStopSlamAndSave(name) } catch { await setMode('idle') }
-      try { await listMaps() } catch {}
-      await refresh()
-      alert('Map saved and SLAM stopped')
-    } catch (e: any) { setError(e?.message || 'Failed to save map') } finally { setBusy(null) }
+      // Stop robot motion immediately
+      emergencyStop()
+      // Try to set robot into safe idle mode
+      try { await setMode('idle') } catch {}
+    } catch (e: any) {
+      setError(e?.message || 'Emergency stop failed')
+    } finally {
+      setBusy(null)
+    }
   }
-  const doStartLoc = async () => {
-    setBusy('Starting Localization…'); setError(null)
-    try { await setMode('localization'); await refresh() } catch (e: any) { setError(e?.message || 'Failed to start Localization') } finally { setBusy(null) }
-  }
-  const doStopLoc = async () => {
-    setBusy('Stopping Localization…'); setError(null)
-    try { await setMode('idle'); await refresh() } catch (e: any) { setError(e?.message || 'Failed to stop Localization') } finally { setBusy(null) }
-  }
-  const doStopSlam = async () => { setBusy('Stopping SLAM…'); setError(null); try { await setMode('idle'); await refresh() } catch (e:any) { setError(e?.message||'Failed to stop SLAM') } finally { setBusy(null) } }
-  const doReloadMaps = async () => { setBusy('Reloading maps…'); setError(null); try { await listMaps() } catch (e:any) { setError(e?.message||'Reload failed') } finally { setBusy(null) } }
 
-  const slamActive = status.state === 'SLAM'
-  const locActive = status.state === 'LOCALIZATION'
-
-  const nav = useNavStatus()
-  const cancelNav = async () => {
-    setBusy('Canceling navigation…'); setError(null)
-    try { await cancelNavigation(nav?.id as any); alert('Cancel requested') } catch (e:any) { setError(e?.message||'Cancel failed') } finally { setBusy(null) }
+  const handleCancelNav = async () => {
+    setBusy('Canceling navigation…')
+    setError(null)
+    try {
+      await cancelNavigation(nav?.id as any)
+    } catch (e: any) {
+      setError(e?.message || 'Cancel failed')
+    } finally {
+      setBusy(null)
+    }
   }
 
   return (
     <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
       <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Modes</h2>
+
       {error && (<div className="mb-2 p-2 text-sm text-red-700 bg-red-50 rounded border border-red-200">{error}</div>)}
       {busy && (<div className="mb-2 p-2 text-sm text-blue-700 bg-blue-50 rounded border border-blue-200">{busy}</div>)}
 
       <div className="grid grid-cols-2 gap-2">
-        <button className="px-3 py-2 rounded bg-emerald-600 disabled:opacity-50 text-white" onClick={doStartSlam} disabled={slamActive || locActive}>Start SLAM Mode</button>
-        <button className="px-3 py-2 rounded bg-amber-600 disabled:opacity-50 text-white" onClick={doSaveExit} disabled={!slamActive}>Save Map & Exit SLAM</button>
-        <button className="px-3 py-2 rounded bg-slate-200" onClick={doReloadMaps}>Reload Map List</button>
-        <div />
-        <button className="px-3 py-2 rounded bg-indigo-600 disabled:opacity-50 text-white" onClick={doStartLoc} disabled={locActive || slamActive}>Start Localization Mode</button>
-        <button className="px-3 py-2 rounded bg-rose-600 disabled:opacity-50 text-white" onClick={doStopLoc} disabled={!locActive}>Stop Localization Mode</button>
+        <button onClick={() => changeMode('manual')} className="px-3 py-2 rounded bg-indigo-600 text-white">Manual (Teleop)</button>
+        <button onClick={() => changeMode('autonomous')} className="px-3 py-2 rounded bg-emerald-600 text-white">Autonomous</button>
+        <button onClick={() => changeMode('charging')} className="px-3 py-2 rounded bg-yellow-500 text-white">Go to Charger</button>
+        <button onClick={() => changeMode('idle')} className="px-3 py-2 rounded bg-slate-400 text-white">Idle</button>
+        <button onClick={handleCancelNav} disabled={!nav || (nav.status !== 1 && nav.status !== 2)} className="px-3 py-2 rounded bg-slate-200">Cancel Nav</button>
+        <button onClick={handleEmergency} className="px-3 py-2 rounded bg-rose-600 text-white">Emergency Stop</button>
       </div>
 
       <div className="mt-4 text-sm text-blue-800 space-y-1">
-        <div>Status: <span className="font-semibold">{status.state}</span></div>
+        <div>Reported state: <span className="font-semibold">{robotState ?? '—'}</span></div>
         <div>Navigation: <span className="font-semibold">{nav?.text || '—'}</span></div>
-        <div>
-          <button className="mt-1 px-3 py-1 rounded bg-slate-200 disabled:opacity-50" onClick={cancelNav} disabled={!nav || (nav.status !== 2 && nav.status !== 1)}>
-            Cancel Navigation
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-3 text-sm text-blue-800">
-        <div className="font-medium mb-1">Advanced</div>
-        <label className="text-sm">Scan source:&nbsp;
-          <select className="border rounded px-2 py-1" value={scanSource} onChange={(e)=>setScanSource(e.target.value as any)}>
-            <option value="raw">raw</option>
-            <option value="filtered">filtered</option>
-          </select>
-        </label>
       </div>
     </section>
   )

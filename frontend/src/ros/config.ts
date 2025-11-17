@@ -18,7 +18,7 @@ export const ROS_CONFIG = {
     mapMetadata: '/map_metadata',
     pois: '/pois',
     availableMaps: '/available_maps',
-    modeStatus: '/mode_manager/status',
+  // modeStatus removed (legacy SLAM manager)
     imuRpy: '/imu/rpy/filtered',
     jointStates: '/joint_states',
     diagnostics: '/diagnostics',
@@ -28,12 +28,10 @@ export const ROS_CONFIG = {
   },
   services: {
     // New service-based control (provided by backend ROS node)
-    setMode: '/set_mode', // interfaces/SetString with data: 'slam' | 'localization' | 'idle'
-    startSlam: '/start_slam', // optional convenience
-    stopSlamAndSave: '/stop_slam_and_save', // interfaces/SetString with data: map name
+  setMode: '/set_mode', // interfaces/SetString with data: arbitrary mode string (e.g. 'manual','autonomous','charging','idle')
     loadMap: '/load_map', // interfaces/SetString with data: map name
     listMaps: '/list_maps', // returns JSON list (string) or an array field
-    getMode: '/get_mode', // returns JSON string/object with { mode, map, msg }
+  // getMode/startSlam/stopSlamAndSave removed (legacy SLAM service endpoints)
     navCancel: '/navigate_to_pose/cancel',
     // Legacy/system services (still supported for fallback)
     systemMapSelect: '/system/map/select',
@@ -55,7 +53,7 @@ export const ROS_CONFIG = {
     map: 'nav_msgs/OccupancyGrid',
     mapMetadata: 'nav_msgs/MapMetaData',
     availableMaps: 'std_msgs/String',
-    modeStatus: 'std_msgs/String',
+  // modeStatus removed
     // POIs now published by system_topics as interfaces/Points (fallbacks handled in hooks)
     pois: 'interfaces/Points',
     imuRpy: 'geometry_msgs/Vector3Stamped', // Roll, Pitch, Yaw

@@ -20,21 +20,9 @@ function parseMaybeJson(anyVal: any): any {
   return anyVal
 }
 
-export async function getMode(): Promise<{ mode?: string; map?: string; msg?: string } | null> {
-  const res = await callService<any>(ROS_CONFIG.services.getMode, 'std_srvs/Trigger', {})
-  return parseMaybeJson(res) || null
-}
-
-export async function setMode(mode: 'slam' | 'localization' | 'idle'): Promise<any> {
+export async function setMode(mode: string): Promise<any> {
+  // setMode accepts arbitrary mode string for flexibility (e.g. 'manual','autonomous','charging','idle')
   return callService(ROS_CONFIG.services.setMode, 'interfaces/SetString', { data: mode })
-}
-
-export async function startSlam(): Promise<any> {
-  return callService(ROS_CONFIG.services.startSlam, 'std_srvs/Trigger', {})
-}
-
-export async function stopSlamAndSave(name?: string): Promise<any> {
-  return callService(ROS_CONFIG.services.stopSlamAndSave, 'interfaces/SetString', { data: name || '' })
 }
 
 export async function loadMap(name: string): Promise<any> {
