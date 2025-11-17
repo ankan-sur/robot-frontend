@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRobotState, usePointsOfInterest, PointOfInterest } from '../ros/hooks'
+import { getMode } from '../ros/services'
 
 type Props = {
   goToLab: (poi: PointOfInterest) => void
@@ -10,15 +11,49 @@ type Props = {
 export function Controls({ goToLab, onStop, disabledMove }: Props) {
   const robotState = useRobotState()
   const [selectedPoi, setSelectedPoi] = useState<string>('')
+  const [currentMode, setCurrentMode] = useState<string | null>(null)
   const pois = usePointsOfInterest()
   const selectedPoiData = pois.find(p => `${p.x},${p.y}` === selectedPoi)
   const hasPois = pois.length > 0
-  const canIssueCommands = !(disabledMove)
+  
+  // Fetch current mode periodically
+  useEffect(() => {
+    const fetchMode = async () => {
+      try {
+        const res = await getMode()
+        setCurrentMode(res?.mode || null)
+      } catch {
+        setCurrentMode(null)
+      }
+    }
+    fetchMode()
+    const interval = setInterval(fetchMode, 5000) // refresh every 5s
+    return () => clearInterval(interval)
+  }, [])
+  
+  const inSlamMode = currentMode === 'slam'
+  const canIssueCommands = !(disabledMove) && !inSlamMode // disable navigation in SLAM mode
   const stopEnabled = canIssueCommands && (robotState ? robotState !== 'idle' : true)
 
   return (
     <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Controls</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Controls</h2>
+        {currentMode && (
+          <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+            currentMode === 'slam' ? 'bg-yellow-200 text-yellow-800' :
+            currentMode === 'localization' ? 'bg-blue-200 text-blue-800' :
+            'bg-gray-200 text-gray-700'
+          }`}>
+            {currentMode.toUpperCase()}
+          </span>
+        )}
+      </div>
+      {inSlamMode && (
+        <div className="mb-3 bg-yellow-100 border border-yellow-400 rounded-lg px-3 py-2 text-sm text-yellow-900">
+          ⚠️ Navigation disabled while mapping
+        </div>
+      )}
       <div className="space-y-4">
         <div>
           <label className="block text-base font-medium text-blue-700 mb-2" htmlFor="poi-select">

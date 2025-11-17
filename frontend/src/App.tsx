@@ -3,6 +3,7 @@ import { Controls } from './components/Controls'
 import { MapView } from './components/MapView'
 import { TelemetryPanel } from './components/TelemetryPanel'
 import { DebugPanel } from './components/DebugPanel'
+import { MappingPanel } from './components/MappingPanel'
 import VideoFeed from './components/VideoFeed'
 import { useRosConnection, useCmdVel, useNavigateToPose, PointOfInterest } from './ros/hooks'
 
@@ -37,6 +38,7 @@ export default function App() {
         </div>
         <div className="lg:col-span-1 space-y-4">
           <VideoFeed />
+          <MappingPanel />
           <Controls
             goToLab={goToLab}
             onStop={stop}

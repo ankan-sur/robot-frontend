@@ -730,3 +730,80 @@ export function publishInitialPose(
 }
 
 // available maps handled via /available_maps directly in UI when needed
+
+export interface ModeAndMaps {
+  mode: string | null; // 'slam', 'localization', 'idle', etc
+  activeMap: string | null; // currently loaded map name
+  maps: string[]; // list of available maps
+  loading: boolean;
+  error: string | null;
+  refresh: () => void;
+}
+
+export function useModeAndMaps(): ModeAndMaps {
+  const [mode, setMode] = useState<string | null>(null);
+  const [activeMap, setActiveMap] = useState<string | null>(null);
+  const [maps, setMaps] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const connectionState = useConnectionWatcher();
+
+  const fetchData = useCallback(async () => {
+    if (connectionState !== 'connected') {
+      setMode(null);
+      setActiveMap(null);
+      setMaps([]);
+      setLoading(false);
+      setError('Not connected to ROS');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Dynamically import to avoid circular deps
+      const { getMode, listMaps } = await import('./services');
+      
+      // Fetch mode and map info
+      const [modeRes, mapsRes] = await Promise.all([
+        getMode().catch(() => null),
+        listMaps().catch(() => [])
+      ]);
+
+      // Parse mode response (returns { mode, map, msg })
+      if (modeRes) {
+        setMode(modeRes.mode || null);
+        setActiveMap(modeRes.map || null);
+      } else {
+        setMode(null);
+        setActiveMap(null);
+      }
+
+      // Parse maps list
+      if (Array.isArray(mapsRes)) {
+        setMaps(mapsRes.filter((m): m is string => typeof m === 'string'));
+      } else {
+        setMaps([]);
+      }
+    } catch (e: any) {
+      console.error('Failed to fetch mode/maps:', e);
+      setError(e?.message || 'Failed to fetch mode/maps');
+    } finally {
+      setLoading(false);
+    }
+  }, [connectionState]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return {
+    mode,
+    activeMap,
+    maps,
+    loading,
+    error,
+    refresh: fetchData
+  };
+}

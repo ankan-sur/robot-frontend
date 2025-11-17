@@ -23,15 +23,17 @@ export const ROS_CONFIG = {
     jointStates: '/joint_states',
     diagnostics: '/diagnostics',
     button: '/ros_robot_controller/button',
-    robotState: '/robot/state', // 'idle', 'responding_to_command', 'heading_to_charger'
+    robotState: '/robot_state', // 'idle', 'responding_to_command', 'heading_to_charger'
     rosout: '/rosout',
   },
   services: {
     // New service-based control (provided by backend ROS node)
-  setMode: '/set_mode', // interfaces/SetString with data: arbitrary mode string (e.g. 'manual','autonomous','charging','idle')
+    setMode: '/set_mode', // interfaces/SetString with data: arbitrary mode string (e.g. 'slam','localization','idle')
+    getMode: '/get_mode', // std_srvs/Trigger, message field contains JSON like {"mode":"localization","map":"<name>"}
+    stopSlamAndSave: '/stop_slam_and_save', // interfaces/SetString with data: map name
     loadMap: '/load_map', // interfaces/SetString with data: map name
     listMaps: '/list_maps', // returns JSON list (string) or an array field
-  // getMode/startSlam/stopSlamAndSave removed (legacy SLAM service endpoints)
+    // getMode/startSlam/stopSlamAndSave removed (legacy SLAM service endpoints)
     navCancel: '/navigate_to_pose/cancel',
     // Legacy/system services (still supported for fallback)
     systemMapSelect: '/system/map/select',

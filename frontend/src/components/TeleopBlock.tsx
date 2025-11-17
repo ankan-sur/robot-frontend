@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { topics } from '../ros/ros'
 import { useRosConnection } from '../ros/hooks'
+import { getMode } from '../ros/services'
 
 export function TeleopBlock() {
   const { connected } = useRosConnection()
+  const [currentMode, setCurrentMode] = useState<string | null>(null)
 
   // Max speeds (typical safe defaults; adjust per robot)
   const MAX_LIN = 3.5
@@ -13,6 +15,21 @@ export function TeleopBlock() {
 
   const held = useRef({ vx: 0, wz: 0 })
   const intervalRef = useRef<number | null>(null)
+
+  // Fetch current mode periodically
+  useEffect(() => {
+    const fetchMode = async () => {
+      try {
+        const res = await getMode()
+        setCurrentMode(res?.mode || null)
+      } catch {
+        setCurrentMode(null)
+      }
+    }
+    fetchMode()
+    const interval = setInterval(fetchMode, 5000) // refresh every 5s
+    return () => clearInterval(interval)
+  }, [])
 
   const publishTwist = () => {
     if (!connected) return
@@ -54,7 +71,18 @@ export function TeleopBlock() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="text-base font-medium text-blue-800">Teleop</div>
+        <div className="flex items-center gap-2">
+          <div className="text-base font-medium text-blue-800">Teleop</div>
+          {currentMode && (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+              currentMode === 'slam' ? 'bg-yellow-200 text-yellow-800' :
+              currentMode === 'localization' ? 'bg-blue-200 text-blue-800' :
+              'bg-gray-200 text-gray-700'
+            }`}>
+              {currentMode.toUpperCase()}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <label className="text-xs text-slate-600">Linear (m/s)</label>
