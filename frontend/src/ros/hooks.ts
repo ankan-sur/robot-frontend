@@ -602,24 +602,24 @@ export function useAvailableMaps(): string[] {
       return;
     }
 
-    const topic = new ROSLIB.Topic({
-      ros,
-      name: ROS_CONFIG.topics.availableMaps,
-      messageType: ROS_CONFIG.messageTypes.availableMaps || 'std_msgs/String'
-    });
-
-    const handle = (msg: any) => {
+    // Prefer service-based listing; fallback to topic if service fails
+    (async () => {
       try {
-        const str = typeof msg === 'string' ? msg : (typeof msg?.data === 'string' ? msg.data : '[]');
-        const parsed = JSON.parse(str);
-        if (Array.isArray(parsed)) setMaps(parsed.filter((x:any) => typeof x === 'string'));
-      } catch (e) {
-        console.error('Failed to parse available_maps:', e);
-      }
-    };
-
-    topic.subscribe(handle);
-    return () => { topic.unsubscribe(handle); };
+        const { listMaps } = await import('./services')
+        const arr = await listMaps()
+        if (Array.isArray(arr) && arr.length) { setMaps(arr); return }
+      } catch {}
+      const topic = new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.availableMaps, messageType: ROS_CONFIG.messageTypes.availableMaps || 'std_msgs/String' });
+      const handle = (msg: any) => {
+        try {
+          const str = typeof msg === 'string' ? msg : (typeof msg?.data === 'string' ? msg.data : '[]');
+          const parsed = JSON.parse(str);
+          if (Array.isArray(parsed)) setMaps(parsed.filter((x:any) => typeof x === 'string'));
+        } catch (e) { console.error('Failed to parse available_maps:', e) }
+      };
+      topic.subscribe(handle);
+      return () => { try { topic.unsubscribe(handle) } catch {} };
+    })();
   }, [connectionState]);
 
   return maps;

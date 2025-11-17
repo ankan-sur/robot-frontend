@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { useRobotState, usePointsOfInterest, PointOfInterest, useAvailableMaps } from '../ros/hooks'
-import ROSLIB from 'roslib'
-import { ros } from '../ros/ros'
-import { ROS_CONFIG } from '../ros/config'
+import { loadMap } from '../ros/services'
 
 type Props = {
   goToLab: (poi: PointOfInterest) => void
@@ -41,21 +39,7 @@ export function Controls({ goToLab, onStop, disabledMove }: Props) {
               onChange={async (e) => {
                 const name = e.target.value
                 setSelectedMap(name)
-                try {
-                  const service = new ROSLIB.Service({
-                    ros,
-                    name: ROS_CONFIG.services.systemMapSelect,
-                    serviceType: 'interfaces/SetString'
-                  })
-                  const req = new ROSLIB.ServiceRequest({ data: name })
-                  await new Promise<void>((resolve, reject) => {
-                    service.callService(req, (result: any) => {
-                      if (result?.success !== false) resolve(); else reject(new Error(result?.message || 'failed'))
-                    }, (err: any) => reject(err))
-                  })
-                } catch (err) {
-                  console.error('Map select failed', err)
-                }
+                try { if (name) await loadMap(name) } catch (err) { console.error('Load map failed', err) }
               }}
               disabled={!hasMaps}
               title={hasMaps ? 'Select a map' : 'No maps available'}

@@ -1,50 +1,52 @@
 import { useEffect, useState } from 'react'
-import { getModeStatus, startSlam, saveMapAndExitSlam, startLocalization, stopLocalization, stopSlam, reloadMaps, type ModeStatus } from '../lib/backend'
+import { getMode, setMode, startSlam as svcStartSlam, stopSlamAndSave as svcStopSlamAndSave, listMaps } from '../ros/services'
+
+type ModeState = 'IDLE' | 'SLAM' | 'LOCALIZATION'
 
 export default function ModePanel() {
-  const [status, setStatus] = useState<ModeStatus>({ state: 'IDLE', slam_running: false, localization_running: false })
+  const [status, setStatus] = useState<{ state: ModeState }>({ state: 'IDLE' })
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [scanSource, setScanSource] = useState<'raw' | 'filtered'>('raw') // placeholder for future param
 
   const refresh = async () => {
     try {
-      const s = await getModeStatus(); setStatus(s)
-    } catch (e: any) { setError(e?.message || 'Failed to get status') }
+      const s = await getMode();
+      const mode = (s?.mode || '').toUpperCase() as ModeState
+      setStatus({ state: mode === 'SLAM' || mode === 'LOCALIZATION' ? mode : 'IDLE' })
+    } catch (e: any) { setError(e?.message || 'Failed to get mode') }
   }
 
   useEffect(() => { refresh() }, [])
 
   const doStartSlam = async () => {
     setBusy('Starting SLAM…'); setError(null)
-    try { setStatus(await startSlam()) } catch (e: any) { setError(e?.message || 'Failed to start SLAM') } finally { setBusy(null) }
+    try { await setMode('slam'); await refresh() } catch (e: any) { setError(e?.message || 'Failed to start SLAM') } finally { setBusy(null) }
   }
   const doSaveExit = async () => {
     const name = (window.prompt('Map name (leave blank for timestamp):') || '').trim() || undefined
     setBusy('Saving map…'); setError(null)
     try {
-      await saveMapAndExitSlam(name)
-      await reloadMaps()
+      // Prefer combined service; fallback to setMode('idle') if unavailable
+      try { await svcStopSlamAndSave(name) } catch { await setMode('idle') }
+      try { await listMaps() } catch {}
       await refresh()
       alert('Map saved and SLAM stopped')
     } catch (e: any) { setError(e?.message || 'Failed to save map') } finally { setBusy(null) }
   }
   const doStartLoc = async () => {
     setBusy('Starting Localization…'); setError(null)
-    try { setStatus(await startLocalization()) } catch (e: any) { setError(e?.message || 'Failed to start Localization') } finally { setBusy(null) }
+    try { await setMode('localization'); await refresh() } catch (e: any) { setError(e?.message || 'Failed to start Localization') } finally { setBusy(null) }
   }
   const doStopLoc = async () => {
     setBusy('Stopping Localization…'); setError(null)
-    try { setStatus(await stopLocalization()) } catch (e: any) { setError(e?.message || 'Failed to stop Localization') } finally { setBusy(null) }
+    try { await setMode('idle'); await refresh() } catch (e: any) { setError(e?.message || 'Failed to stop Localization') } finally { setBusy(null) }
   }
-  const doStopSlam = async () => {
-    setBusy('Stopping SLAM…'); setError(null)
-    try { setStatus(await stopSlam()) } catch (e: any) { setError(e?.message || 'Failed to stop SLAM') } finally { setBusy(null) }
-  }
-  const doReloadMaps = async () => { setBusy('Reloading maps…'); setError(null); try { await reloadMaps() } catch (e:any) { setError(e?.message||'Reload failed') } finally { setBusy(null) } }
+  const doStopSlam = async () => { setBusy('Stopping SLAM…'); setError(null); try { await setMode('idle'); await refresh() } catch (e:any) { setError(e?.message||'Failed to stop SLAM') } finally { setBusy(null) } }
+  const doReloadMaps = async () => { setBusy('Reloading maps…'); setError(null); try { await listMaps() } catch (e:any) { setError(e?.message||'Reload failed') } finally { setBusy(null) } }
 
-  const slamActive = status.slam_running
-  const locActive = status.localization_running
+  const slamActive = status.state === 'SLAM'
+  const locActive = status.state === 'LOCALIZATION'
 
   return (
     <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
@@ -78,4 +80,3 @@ export default function ModePanel() {
     </section>
   )
 }
-

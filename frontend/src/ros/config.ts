@@ -26,6 +26,14 @@ export const ROS_CONFIG = {
     rosout: '/rosout',
   },
   services: {
+    // New service-based control (provided by backend ROS node)
+    setMode: '/set_mode', // interfaces/SetString with data: 'slam' | 'localization' | 'idle'
+    startSlam: '/start_slam', // optional convenience
+    stopSlamAndSave: '/stop_slam_and_save', // interfaces/SetString with data: map name
+    loadMap: '/load_map', // interfaces/SetString with data: map name
+    listMaps: '/list_maps', // returns JSON list (string) or an array field
+    getMode: '/get_mode', // returns JSON string/object with { mode, map, msg }
+    // Legacy/system services (still supported for fallback)
     systemMapSelect: '/system/map/select',
     systemMapInfo: '/system/map/info',
     systemMapPois: '/system/map/pois',
