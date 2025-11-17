@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { useRobotState, usePointsOfInterest, PointOfInterest, useAvailableMaps } from '../ros/hooks'
-import { loadMap } from '../ros/services'
+import { useRobotState, usePointsOfInterest, PointOfInterest } from '../ros/hooks'
 
 type Props = {
   goToLab: (poi: PointOfInterest) => void
@@ -10,13 +9,10 @@ type Props = {
 
 export function Controls({ goToLab, onStop, disabledMove }: Props) {
   const robotState = useRobotState()
-  const maps = useAvailableMaps()
   const [selectedPoi, setSelectedPoi] = useState<string>('')
-  const [selectedMap, setSelectedMap] = useState<string>('')
-  const pois = usePointsOfInterest(selectedMap)
+  const pois = usePointsOfInterest()
   const selectedPoiData = pois.find(p => `${p.x},${p.y}` === selectedPoi)
   const hasPois = pois.length > 0
-  const hasMaps = maps.length > 0
   const canIssueCommands = !(disabledMove)
   const stopEnabled = canIssueCommands && (robotState ? robotState !== 'idle' : true)
 
@@ -24,33 +20,7 @@ export function Controls({ goToLab, onStop, disabledMove }: Props) {
     <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
       <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Controls</h2>
       <div className="space-y-4">
-        <div className="space-y-3">
-          {/* Map selector from /available_maps */}
-          <div>
-            <label className="block text-base font-medium text-blue-700 mb-2" htmlFor="map-select">
-              Map
-            </label>
-            <select
-              id="map-select"
-              className={`w-full rounded-lg border-2 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-                hasMaps ? 'border-blue-300 bg-white text-blue-900 hover:border-blue-400' : 'border-gray-300 bg-gray-100 text-gray-400'
-              }`}
-              value={selectedMap}
-              onChange={async (e) => {
-                const name = e.target.value
-                setSelectedMap(name)
-                try { if (name) await loadMap(name) } catch (err) { console.error('Load map failed', err) }
-              }}
-              disabled={!hasMaps}
-              title={hasMaps ? 'Select a map' : 'No maps available'}
-            >
-              <option value="">{hasMaps ? 'Select map…' : 'NA - No maps available'}</option>
-              {maps.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </div>
-
+        <div>
           <label className="block text-base font-medium text-blue-700 mb-2" htmlFor="poi-select">
             Destination
           </label>

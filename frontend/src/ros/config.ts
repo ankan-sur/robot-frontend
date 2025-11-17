@@ -18,6 +18,7 @@ export const ROS_CONFIG = {
     mapMetadata: '/map_metadata',
     pois: '/pois',
     availableMaps: '/available_maps',
+    modeStatus: '/mode_manager/status',
     imuRpy: '/imu/rpy/filtered',
     jointStates: '/joint_states',
     diagnostics: '/diagnostics',
@@ -33,6 +34,7 @@ export const ROS_CONFIG = {
     loadMap: '/load_map', // interfaces/SetString with data: map name
     listMaps: '/list_maps', // returns JSON list (string) or an array field
     getMode: '/get_mode', // returns JSON string/object with { mode, map, msg }
+    navCancel: '/navigate_to_pose/cancel',
     // Legacy/system services (still supported for fallback)
     systemMapSelect: '/system/map/select',
     systemMapInfo: '/system/map/info',
@@ -40,6 +42,10 @@ export const ROS_CONFIG = {
   },
   actions: {
     navigateToPose: '/navigate_to_pose',
+  },
+  // Navigation status
+  nav: {
+    statusTopic: '/navigate_to_pose/status'
   },
   messageTypes: {
     cmdVel: 'geometry_msgs/Twist',
@@ -49,6 +55,7 @@ export const ROS_CONFIG = {
     map: 'nav_msgs/OccupancyGrid',
     mapMetadata: 'nav_msgs/MapMetaData',
     availableMaps: 'std_msgs/String',
+    modeStatus: 'std_msgs/String',
     // POIs now published by system_topics as interfaces/Points (fallbacks handled in hooks)
     pois: 'interfaces/Points',
     imuRpy: 'geometry_msgs/Vector3Stamped', // Roll, Pitch, Yaw
@@ -57,5 +64,6 @@ export const ROS_CONFIG = {
     button: 'ros_robot_controller_msgs/ButtonState',
     robotState: 'std_msgs/String', // Robot state string
     rosout: 'rcl_interfaces/Log',
+    navStatus: 'action_msgs/GoalStatusArray',
   }
 };

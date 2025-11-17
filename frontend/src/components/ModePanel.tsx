@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { getMode, setMode, startSlam as svcStartSlam, stopSlamAndSave as svcStopSlamAndSave, listMaps } from '../ros/services'
+import { getMode, setMode, stopSlamAndSave as svcStopSlamAndSave, listMaps, cancelNavigation } from '../ros/services'
+import { topics } from '../ros/ros'
+import { useNavStatus } from '../ros/hooks'
 
 type ModeState = 'IDLE' | 'SLAM' | 'LOCALIZATION'
 
@@ -17,7 +19,20 @@ export default function ModePanel() {
     } catch (e: any) { setError(e?.message || 'Failed to get mode') }
   }
 
-  useEffect(() => { refresh() }, [])
+  useEffect(() => {
+    refresh()
+    // Live updates from /mode_manager/status
+    const handle = (m: any) => {
+      try {
+        const raw = m?.data || m
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+        const mode = (parsed?.mode || '').toUpperCase() as ModeState
+        setStatus({ state: mode === 'SLAM' || mode === 'LOCALIZATION' ? mode : 'IDLE' })
+      } catch {}
+    }
+    try { topics.modeStatus.subscribe(handle) } catch {}
+    return () => { try { topics.modeStatus.unsubscribe(handle) } catch {} }
+  }, [])
 
   const doStartSlam = async () => {
     setBusy('Starting SLAM…'); setError(null)
@@ -48,6 +63,12 @@ export default function ModePanel() {
   const slamActive = status.state === 'SLAM'
   const locActive = status.state === 'LOCALIZATION'
 
+  const nav = useNavStatus()
+  const cancelNav = async () => {
+    setBusy('Canceling navigation…'); setError(null)
+    try { await cancelNavigation(nav?.id as any); alert('Cancel requested') } catch (e:any) { setError(e?.message||'Cancel failed') } finally { setBusy(null) }
+  }
+
   return (
     <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
       <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Modes</h2>
@@ -63,9 +84,14 @@ export default function ModePanel() {
         <button className="px-3 py-2 rounded bg-rose-600 disabled:opacity-50 text-white" onClick={doStopLoc} disabled={!locActive}>Stop Localization Mode</button>
       </div>
 
-      <div className="mt-4 text-sm text-blue-800">
+      <div className="mt-4 text-sm text-blue-800 space-y-1">
         <div>Status: <span className="font-semibold">{status.state}</span></div>
-        <div className="mt-2">Navigation status (placeholder): RUNNING — last error: none</div>
+        <div>Navigation: <span className="font-semibold">{nav?.text || '—'}</span></div>
+        <div>
+          <button className="mt-1 px-3 py-1 rounded bg-slate-200 disabled:opacity-50" onClick={cancelNav} disabled={!nav || (nav.status !== 2 && nav.status !== 1)}>
+            Cancel Navigation
+          </button>
+        </div>
       </div>
 
       <div className="mt-3 text-sm text-blue-800">

@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { topics } from '../ros/ros'
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE || 'http://localhost:8000'
-
-type TabKey = 'rosout'
+type TabKey = 'all' | 'errors'
 
 export function DebugLog() {
-  const [tab] = useState<TabKey>('rosout')
+  const [tab, setTab] = useState<TabKey>('all')
   const [logs, setLogs] = useState<string[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -14,14 +12,11 @@ export function DebugLog() {
   const [autoScroll, setAutoScroll] = useState(false)
 
   // Hold current connections
-  const eventSourceRef = useRef<EventSource | null>(null)
   const rosTopicRef = useRef<{ topic?: any; cb?: (m:any)=>void } | null>(null)
 
   useEffect(() => {
     // Cleanup previous
-    try { eventSourceRef.current?.close() } catch {}
-    eventSourceRef.current = null
-    // Unsubscribe from whichever ROS topic was active
+    // Unsubscribe from previous
     try {
       if (rosTopicRef.current?.topic && rosTopicRef.current?.cb) {
         rosTopicRef.current.topic.unsubscribe(rosTopicRef.current.cb)
@@ -33,20 +28,14 @@ export function DebugLog() {
     setError(null)
     setIsConnected(false)
 
-    // ROS topic subscription for other tabs
+    // ROS topic subscription
     const add = (s: string) => setLogs(prev => [...prev, s].slice(-1000))
     const onMsg = (m: any) => {
       let line = ''
-      if (tab === 'robot') {
-        line = String(m?.data ?? '')
-      } else if (tab === 'feedback') {
-        line = `FB ${String(m?.data ?? '')}`
-      } else if (tab === 'rosout') {
-        const name = m?.name ?? m?.logger ?? 'rosout'
-        const lvl = m?.level ?? m?.severity ?? ''
-        const text = m?.msg ?? m?.message ?? m?.data ?? JSON.stringify(m)
-        line = `[${name}] ${text} ${lvl !== '' ? `(lvl ${lvl})` : ''}`
-      }
+      const name = m?.name ?? m?.logger ?? 'rosout'
+      const lvl = m?.level ?? m?.severity ?? ''
+      const text = m?.msg ?? m?.message ?? m?.data ?? JSON.stringify(m)
+      line = `[${name}] ${text} ${lvl !== '' ? `(lvl ${lvl})` : ''}`
       add(line)
     }
     try {
@@ -65,7 +54,7 @@ export function DebugLog() {
       } catch {}
       rosTopicRef.current = null
     }
-  }, [tab])
+  }, [])
 
   useEffect(() => {
     if (!autoScroll) return
@@ -76,6 +65,11 @@ export function DebugLog() {
   }, [logs, autoScroll])
 
   const clearLogs = () => setLogs([])
+  const isErrLine = (s: string) => {
+    const lower = s.toLowerCase()
+    return lower.includes('error') || lower.includes('fatal') || lower.includes('warn')
+  }
+  const visible = tab === 'all' ? logs : logs.filter(isErrLine)
 
   return (
     <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
@@ -92,14 +86,15 @@ export function DebugLog() {
       </div>
 
       <div className="flex gap-2 mb-3">
-        <TabButton active>{'Rosout'}</TabButton>
+        <TabButton active={tab==='all'} onClick={()=>setTab('all')}>All</TabButton>
+        <TabButton active={tab==='errors'} onClick={()=>setTab('errors')}>Errors Only</TabButton>
       </div>
 
       {error && (<div className="mb-2 p-2 text-sm text-red-700 bg-red-50 rounded border border-red-200">{error}</div>)}
 
       <div className="h-64 bg-gradient-to-br from-slate-900 to-blue-900 rounded-lg border-2 border-blue-500 overflow-y-auto p-3 font-mono text-sm">
-        {logs.length === 0 && !error && (<div className="text-blue-300 text-center py-8">Waiting for logs...</div>)}
-        {logs.map((log, index) => {
+        {visible.length === 0 && !error && (<div className="text-blue-300 text-center py-8">Waiting for logs...</div>)}
+        {visible.map((log, index) => {
           let textColor = 'text-blue-200'
           const lower = String(log).toLowerCase()
           if (lower.includes('error') || lower.includes('fatal')) textColor = 'text-red-300'
@@ -113,10 +108,10 @@ export function DebugLog() {
   )
 }
 
-function TabButton({ active, children }: { active: boolean; children: any }) {
+function TabButton({ active, onClick, children }: { active: boolean; onClick?: ()=>void; children: any }) {
   return (
-    <div className={`px-3 py-1.5 text-xs rounded border ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-300'}`}>
+    <button onClick={onClick} className={`px-3 py-1.5 text-xs rounded border ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-300'}`}>
       {children}
-    </div>
+    </button>
   )
 }

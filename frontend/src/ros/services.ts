@@ -52,3 +52,24 @@ export async function listMaps(): Promise<string[]> {
   return []
 }
 
+export async function cancelNavigation(goalId?: number[] | string): Promise<any> {
+  // If a goalId (UUID) is provided, try to send it; otherwise, request cancel all
+  let request: any = {}
+  if (Array.isArray(goalId)) {
+    request = { goal_info: { goal_id: { uuid: goalId } } }
+  } else if (typeof goalId === 'string') {
+    // Convert hex string to byte array if possible (strip dashes)
+    const hex = goalId.replace(/-/g, '')
+    const bytes: number[] = []
+    for (let i = 0; i < hex.length; i += 2) {
+      bytes.push(parseInt(hex.slice(i, i + 2), 16))
+    }
+    request = { goal_info: { goal_id: { uuid: bytes } } }
+  }
+  try {
+    return await callService(ROS_CONFIG.services.navCancel, 'action_msgs/CancelGoal', request)
+  } catch (e) {
+    // Some stacks use alternate name; best-effort fallback
+    return await callService('/navigate_to_pose/_action/cancel_goal', 'action_msgs/CancelGoal', request)
+  }
+}

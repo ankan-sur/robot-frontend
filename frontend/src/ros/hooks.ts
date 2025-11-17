@@ -625,6 +625,51 @@ export function useAvailableMaps(): string[] {
   return maps;
 }
 
+export type NavGoalStatus = {
+  id?: number[];
+  status?: number;
+  text?: string;
+}
+
+export function useNavStatus(): NavGoalStatus | null {
+  const [st, setSt] = useState<NavGoalStatus | null>(null)
+  const connectionState = useConnectionWatcher();
+
+  useEffect(() => {
+    if (connectionState !== 'connected') { setSt(null); return }
+    const topic = new ROSLIB.Topic({ ros, name: (ROS_CONFIG.nav?.statusTopic || '/navigate_to_pose/status'), messageType: 'action_msgs/GoalStatusArray' })
+    const handle = (msg: any) => {
+      try {
+        const list = msg?.status_list || msg?.status || []
+        if (Array.isArray(list) && list.length > 0) {
+          const latest = list[list.length - 1]
+          const id = latest?.goal_info?.goal_id?.uuid || latest?.goal_id?.uuid
+          const code = latest?.status
+          const text = statusCodeToText(code)
+          setSt({ id, status: code, text })
+        }
+      } catch (e) { /* ignore */ }
+    }
+    topic.subscribe(handle)
+    return () => { try { topic.unsubscribe(handle) } catch {} }
+  }, [connectionState])
+
+  return st
+}
+
+function statusCodeToText(code: number | undefined): string {
+  switch (code) {
+    case 0: return 'UNKNOWN'
+    case 1: return 'ACCEPTED'
+    case 2: return 'EXECUTING'
+    case 3: return 'CANCELING'
+    case 4: return 'SUCCEEDED'
+    case 5: return 'CANCELED'
+    case 6: return 'ABORTED'
+    default: return '—'
+  }
+}
+
 // Demo initial pose (from RViz /initialpose captured during setup)
 export const DEMO_INITIAL_POSE = {
   x: -0.1869187355,

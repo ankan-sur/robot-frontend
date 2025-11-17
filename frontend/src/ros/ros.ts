@@ -48,4 +48,6 @@ export const topics = {
 
   robotState: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.robotState, messageType: ROS_CONFIG.messageTypes.robotState }),
   rosout: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.rosout, messageType: ROS_CONFIG.messageTypes.rosout }),
+  modeStatus: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.modeStatus, messageType: ROS_CONFIG.messageTypes.modeStatus }),
+  navStatus: new ROSLIB.Topic({ ros, name: (ROS_CONFIG.nav?.statusTopic || '/navigate_to_pose/status'), messageType: ROS_CONFIG.messageTypes.navStatus }),
 };
