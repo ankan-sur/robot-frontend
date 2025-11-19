@@ -78,7 +78,7 @@ export function MapView() {
       })
       ctx.restore()
     }
-  }, [map, odom, pois])
+  }, [map, robotPose, pois])
 
   return (
     <section className="bg-white p-4">
