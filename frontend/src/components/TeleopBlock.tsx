@@ -135,8 +135,8 @@ export function TeleopBlock() {
   }, [connected, linSet, angSet, currentMode])
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+  <div className="space-y-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <div className="text-base font-medium text-blue-800">Teleop</div>
           {currentMode && (
@@ -149,22 +149,28 @@ export function TeleopBlock() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-slate-600">Linear (m/s)</label>
-            <input type="range" min={0} max={effectiveMaxLin()} step={0.05} value={linSet} onChange={(e)=>setLinSet(parseFloat(e.target.value))} className="w-28" />
+        <div className="flex flex-col gap-2 w-full max-w-md sm:flex-row sm:gap-3 sm:w-auto">
+          <div className="flex items-center gap-2 w-full">
+            <label className="text-xs text-slate-600 whitespace-nowrap">Linear (m/s)</label>
+            <input type="range" min={0} max={effectiveMaxLin()} step={0.05} value={linSet} onChange={(e)=>setLinSet(parseFloat(e.target.value))} className="w-full sm:w-28" />
             <span className="text-xs text-slate-600 w-10 text-right">{lin().toFixed(2)}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-slate-600">Angular (rad/s)</label>
-            <input type="range" min={0} max={effectiveMaxAng()} step={0.05} value={angSet} onChange={(e)=>setAngSet(parseFloat(e.target.value))} className="w-28" />
+          <div className="flex items-center gap-2 w-full">
+            <label className="text-xs text-slate-600 whitespace-nowrap">Angular (rad/s)</label>
+            <input type="range" min={0} max={effectiveMaxAng()} step={0.05} value={angSet} onChange={(e)=>setAngSet(parseFloat(e.target.value))} className="w-full sm:w-28" />
             <span className="text-xs text-slate-600 w-10 text-right">{ang().toFixed(2)}</span>
           </div>
         </div>
       </div>
 
-      {/* Diamond layout */}
-      <div className="grid grid-cols-3 gap-2 place-items-center select-none">
+      {/* Virtual Joystick placeholder for mobile */}
+      <div className="block sm:hidden">
+        {/* TODO: Integrate <VirtualJoystick /> here for mobile touch control */}
+        <div className="my-2 text-center text-xs text-slate-400">Touch joystick coming soon</div>
+      </div>
+
+      {/* Diamond layout for desktop */}
+      <div className="hidden sm:grid grid-cols-3 gap-2 place-items-center select-none">
         <div />
         <button
           className="w-20 h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
@@ -225,7 +231,7 @@ export function TeleopBlock() {
         <div />
       </div>
 
-  <div className="text-[11px] text-slate-500">Max lin {effectiveMaxLin().toFixed(1)} m/s (mode cap), ang {effectiveMaxAng().toFixed(1)} rad/s.</div>
+      <div className="text-[11px] text-slate-500">Max lin {effectiveMaxLin().toFixed(1)} m/s (mode cap), ang {effectiveMaxAng().toFixed(1)} rad/s.</div>
     </div>
   )
 }

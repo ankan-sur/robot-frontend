@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { useMap, useOdom, usePointsOfInterest } from '../ros/hooks'
+import { useMap, useRobotPose, usePointsOfInterest } from '../ros/hooks'
 
 export function MapView() {
   const map = useMap()
-  const odom = useOdom()
+  const robotPose = useRobotPose() // subscribe to /robot/pose (map frame)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pois = usePointsOfInterest()
   const mapReady = Boolean(map)
@@ -31,13 +31,14 @@ export function MapView() {
     }
     ctx.putImageData(imageData, 0, 0)
 
-    // draw robot
-    const pos = odom?.pose.pose.position
-    const ori = odom?.pose.pose.orientation
+    // draw robot using /robot/pose (map frame)
+    const pos = robotPose?.pose?.position
+    const ori = robotPose?.pose?.orientation
     if (pos && ori) {
       const mapX = (pos.x - origin.position.x) / resolution
       const mapY = (pos.y - origin.position.y) / resolution
       const canvasY = height - mapY
+      // yaw from quaternion
       const yaw = 2 * Math.atan2(ori.z, ori.w)
       ctx.save()
       ctx.translate(mapX, canvasY)
@@ -47,15 +48,23 @@ export function MapView() {
       ctx.restore()
     }
 
-    // draw POIs
+    // draw POIs (support legacy and new schema)
     if (pois && Array.isArray(pois)) {
       ctx.save()
       ctx.font = '10px sans-serif'
       ctx.textAlign = 'left'
       ctx.textBaseline = 'middle'
       pois.forEach(p => {
-        const px = (p.x - origin.position.x) / resolution
-        const py = (p.y - origin.position.y) / resolution
+        let px, py, yaw
+        if (p.pose) {
+          px = (p.pose.x - origin.position.x) / resolution
+          py = (p.pose.y - origin.position.y) / resolution
+          yaw = p.pose.yaw || 0
+        } else {
+          px = (p.x - origin.position.x) / resolution
+          py = (p.y - origin.position.y) / resolution
+          yaw = 0
+        }
         const cy = height - py
         ctx.fillStyle = '#16a34a'
         ctx.strokeStyle = '#064e3b'
@@ -63,7 +72,7 @@ export function MapView() {
         ctx.arc(px, cy, 3, 0, Math.PI * 2)
         ctx.fill()
         ctx.stroke()
-        const label = p.name || `${p.x.toFixed(2)}, ${p.y.toFixed(2)}`
+        const label = p.name || (p.pose ? `${p.pose.x.toFixed(2)}, ${p.pose.y.toFixed(2)}` : `${p.x.toFixed(2)}, ${p.y.toFixed(2)}`)
         ctx.fillStyle = '#064e3b'
         ctx.fillText(label, px + 5, cy)
       })
@@ -72,11 +81,11 @@ export function MapView() {
   }, [map, odom, pois])
 
   return (
-    <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
-      <div className="flex items-center justify-between mb-4 gap-3">
+    <section className="bg-white p-4">
+      <div className="flex items-center justify-between mb-2 gap-3">
         <h2 className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Navigation Map</h2>
       </div>
-      <div className="h-96 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 overflow-hidden relative flex items-center justify-center">
+      <div className="h-96 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg overflow-hidden relative flex items-center justify-center">
         {!map && (
           <div className="text-center p-4 text-blue-700">
             <div className="font-semibold mb-1">No map available</div>

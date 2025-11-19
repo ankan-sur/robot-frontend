@@ -1,3 +1,24 @@
+// Subscribe to /robot/pose (geometry_msgs/PoseStamped, frame_id: map)
+export function useRobotPose() {
+  const [pose, setPose] = useState<any | null>(null);
+  const connectionState = useConnectionWatcher();
+
+  useEffect(() => {
+    if (connectionState !== 'connected') {
+      setPose(null);
+      return;
+    }
+    const poseTopic = new ROSLIB.Topic({
+      ros,
+      name: '/robot/pose',
+      messageType: 'geometry_msgs/PoseStamped'
+    });
+    const handle = (msg: any) => setPose(msg);
+    poseTopic.subscribe(handle);
+    return () => { poseTopic.unsubscribe(handle); };
+  }, [connectionState]);
+  return pose;
+}
 import { useEffect, useState, useRef, useCallback } from 'react';
 import ROSLIB from 'roslib';
 import { ros, getConnectionState, onConnectionChange, ConnectionState } from './ros';
@@ -73,10 +94,10 @@ export function useOdom() {
     });
 
     const handleMessage = (msg: Odometry) => setOdom(msg);
-    odomTopic.subscribe(handleMessage);
+    odomTopic.subscribe((msg: any) => handleMessage(msg));
     
     return () => {
-      odomTopic.unsubscribe(handleMessage);
+      odomTopic.unsubscribe((msg: any) => handleMessage(msg));
     };
   }, [connectionState]);
   
@@ -422,21 +443,27 @@ export function useMap() {
       setMap(msg);
     };
 
-    mapTopic.subscribe(handleMessage);
+    mapTopic.subscribe((msg: any) => handleMessage(msg));
     
     return () => {
-      mapTopic.unsubscribe(handleMessage);
+      mapTopic.unsubscribe((msg: any) => handleMessage(msg));
     };
   }, [connectionState]);
   
   return map;
 }
 
+// POI supports both legacy (x, y, yaw?) and new schema (pose: {x, y, yaw})
 export interface PointOfInterest {
   name: string;
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
   yaw?: number;
+  pose?: {
+    x: number;
+    y: number;
+    yaw?: number;
+  };
 }
 
 // Fetch POIs for a given map via service (fallback to /pois topic if service fails)
@@ -455,11 +482,16 @@ export function usePoisForMap(mapName?: string): PointOfInterest[] {
       const out: PointOfInterest[] = [];
       if (Array.isArray(list)) {
         list.forEach((p: any, i: number) => {
-          const base = p?.point || p?.position || p;
-          const x = Number(base?.x);
-          const y = Number(base?.y);
-          const yaw = p?.yaw != null ? Number(p.yaw) : (base?.yaw != null ? Number(base.yaw) : undefined);
-          if (!Number.isNaN(x) && !Number.isNaN(y)) out.push({ name: p?.name || `POI ${i+1}`, x, y, yaw });
+          // New schema: { name, pose: {x, y, yaw} }
+          if (p?.pose && typeof p.pose.x === 'number' && typeof p.pose.y === 'number') {
+            out.push({ name: p?.name || `POI ${i+1}`, pose: { x: p.pose.x, y: p.pose.y, yaw: p.pose.yaw } });
+          } else {
+            // Legacy: { name, x, y, yaw }
+            const x = Number(p?.x);
+            const y = Number(p?.y);
+            const yaw = p?.yaw != null ? Number(p.yaw) : undefined;
+            if (!Number.isNaN(x) && !Number.isNaN(y)) out.push({ name: p?.name || `POI ${i+1}`, x, y, yaw });
+          }
         });
       }
       setPois(out);

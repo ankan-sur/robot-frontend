@@ -167,15 +167,15 @@ export function MappingPanel() {
 
       {/* Error/Status Messages */}
       {error && (
-        <div className="bg-gradient-to-r from-red-50 to-rose-50 border-2 border-red-300 rounded-lg px-3 py-2 text-red-800 text-sm mb-3 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="bg-gradient-to-r from-red-50 to-rose-50 rounded-lg px-3 py-2 text-red-800 text-sm mb-2 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
           <span className="font-semibold">⚠ Error:</span> {error}
         </div>
       )}
       {statusMsg && (
-        <div className={`rounded-lg px-3 py-2 text-sm mb-3 shadow-sm border-2 animate-in fade-in slide-in-from-top-2 duration-300 ${
+        <div className={`rounded-lg px-3 py-2 text-sm mb-2 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300 ${
           statusMsg.startsWith('✓')
-            ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300 text-green-800'
-            : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-300 text-red-800'
+            ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-800'
+            : 'bg-gradient-to-r from-red-50 to-rose-50 text-red-800'
         }`}>
           <span className="font-semibold">{statusMsg}</span>
         </div>
