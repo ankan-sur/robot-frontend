@@ -6,15 +6,22 @@ import { getMode } from '../ros/services'
 export function TeleopBlock() {
   const { connected } = useRosConnection()
   const [currentMode, setCurrentMode] = useState<string | null>(null)
-
-  // Max speeds (typical safe defaults; adjust per robot)
-  const MAX_LIN = 3.5
-  const MAX_ANG = 3.5
+  // Sliders (adjust while holding for immediate effect)
   const [linSet, setLinSet] = useState(0.3)
   const [angSet, setAngSet] = useState(1.0)
-
+  // Held command velocity
   const held = useRef({ vx: 0, wz: 0 })
   const intervalRef = useRef<number | null>(null)
+  const keysRef = useRef<Set<string>>(new Set())
+  const PUBLISH_INTERVAL_MS = 100 // 10Hz per clarification
+
+  // Max speed caps (mode-dependent)
+  const MAX_LIN_BASE = 2.5
+  const MAX_ANG_BASE = 2.5
+  const MAX_LIN_SLAM = 1.5
+  const MAX_ANG_SLAM = 2.5
+  const effectiveMaxLin = () => currentMode === 'slam' ? MAX_LIN_SLAM : MAX_LIN_BASE
+  const effectiveMaxAng = () => currentMode === 'slam' ? MAX_ANG_SLAM : MAX_ANG_BASE
 
   // Fetch current mode periodically
   useEffect(() => {
@@ -33,15 +40,17 @@ export function TeleopBlock() {
 
   const publishTwist = () => {
     if (!connected) return
+    const vx = Math.max(-effectiveMaxLin(), Math.min(effectiveMaxLin(), held.current.vx))
+    const wz = Math.max(-effectiveMaxAng(), Math.min(effectiveMaxAng(), held.current.wz))
     topics.cmdVel.publish({
-      linear: { x: held.current.vx, y: 0, z: 0 },
-      angular: { x: 0, y: 0, z: held.current.wz },
+      linear: { x: vx, y: 0, z: 0 },
+      angular: { x: 0, y: 0, z: wz },
     } as any)
   }
 
   const startLoop = () => {
     if (!connected || intervalRef.current != null) return
-    intervalRef.current = window.setInterval(publishTwist, 50)
+    intervalRef.current = window.setInterval(publishTwist, PUBLISH_INTERVAL_MS)
   }
 
   const stopLoopIfIdle = () => {
@@ -65,8 +74,65 @@ export function TeleopBlock() {
     fn()
   }
 
-  const lin = () => Math.max(0, Math.min(MAX_LIN, linSet))
-  const ang = () => Math.max(0, Math.min(MAX_ANG, angSet))
+  const lin = () => Math.max(0, Math.min(effectiveMaxLin(), linSet))
+  const ang = () => Math.max(0, Math.min(effectiveMaxAng(), angSet))
+
+  // If sliders change while moving, update held velocities immediately
+  useEffect(() => {
+    if (held.current.vx > 0) held.current.vx = lin()
+    if (held.current.vx < 0) held.current.vx = -lin()
+    if (held.current.wz > 0) held.current.wz = ang()
+    if (held.current.wz < 0) held.current.wz = -ang()
+  }, [linSet, angSet, currentMode])
+
+  // Keyboard teleop (W/S forward/back, A/D rotate, arrows alias)
+  useEffect(() => {
+    const recompute = () => {
+      // Linear
+      if (keysRef.current.has('w') || keysRef.current.has('arrowup')) {
+        held.current.vx = lin()
+      } else if (keysRef.current.has('s') || keysRef.current.has('arrowdown')) {
+        held.current.vx = -lin()
+      } else {
+        held.current.vx = 0
+      }
+      // Angular
+      if (keysRef.current.has('a') || keysRef.current.has('arrowleft')) {
+        held.current.wz = ang()
+      } else if (keysRef.current.has('d') || keysRef.current.has('arrowright')) {
+        held.current.wz = -ang()
+      } else {
+        held.current.wz = 0
+      }
+      if (held.current.vx !== 0 || held.current.wz !== 0) {
+        startLoop()
+      } else {
+        publishTwist()
+        stopLoopIfIdle()
+      }
+    }
+    const down = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase()
+      if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) {
+        e.preventDefault()
+        keysRef.current.add(k)
+        recompute()
+      }
+    }
+    const up = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase()
+      if (keysRef.current.delete(k)) {
+        recompute()
+      }
+    }
+    window.addEventListener('keydown', down, { passive: false })
+    window.addEventListener('keyup', up)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+      keysRef.current.clear()
+    }
+  }, [connected, linSet, angSet, currentMode])
 
   return (
     <div className="space-y-4">
@@ -86,12 +152,12 @@ export function TeleopBlock() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <label className="text-xs text-slate-600">Linear (m/s)</label>
-            <input type="range" min={0} max={MAX_LIN} step={0.05} value={linSet} onChange={(e)=>setLinSet(parseFloat(e.target.value))} className="w-28" />
+            <input type="range" min={0} max={effectiveMaxLin()} step={0.05} value={linSet} onChange={(e)=>setLinSet(parseFloat(e.target.value))} className="w-28" />
             <span className="text-xs text-slate-600 w-10 text-right">{lin().toFixed(2)}</span>
           </div>
           <div className="flex items-center gap-2">
             <label className="text-xs text-slate-600">Angular (rad/s)</label>
-            <input type="range" min={0} max={MAX_ANG} step={0.05} value={angSet} onChange={(e)=>setAngSet(parseFloat(e.target.value))} className="w-28" />
+            <input type="range" min={0} max={effectiveMaxAng()} step={0.05} value={angSet} onChange={(e)=>setAngSet(parseFloat(e.target.value))} className="w-28" />
             <span className="text-xs text-slate-600 w-10 text-right">{ang().toFixed(2)}</span>
           </div>
         </div>
@@ -159,7 +225,7 @@ export function TeleopBlock() {
         <div />
       </div>
 
-      <div className="text-[11px] text-slate-500">Max lin {MAX_LIN.toFixed(1)} m/s, ang {MAX_ANG.toFixed(1)} rad/s.</div>
+  <div className="text-[11px] text-slate-500">Max lin {effectiveMaxLin().toFixed(1)} m/s (mode cap), ang {effectiveMaxAng().toFixed(1)} rad/s.</div>
     </div>
   )
 }

@@ -335,7 +335,7 @@ export function useRobotState() {
 
 export function useCmdVel() {
   const cmdVelRef = useRef<ROSLIB.Topic | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Removed auto-stop timeout per clarified requirements (instant manual stop only)
   
   useEffect(() => {
     const handleConnectionChange = (state: ConnectionState) => {
@@ -347,10 +347,6 @@ export function useCmdVel() {
         });
       } else {
         cmdVelRef.current = null;
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
       }
     };
 
@@ -360,9 +356,6 @@ export function useCmdVel() {
     return () => {
       unsubscribe();
       cmdVelRef.current = null;
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
     };
   }, []);
   
@@ -383,19 +376,9 @@ export function useCmdVel() {
 
     cmdVelRef.current.publish(twist);
 
-    // Auto-stop if no command within 300ms (safety feature)
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      const stop = new ROSLIB.Message({
-        linear: { x: 0, y: 0, z: 0 },
-        angular: { x: 0, y: 0, z: 0 }
-      });
-      cmdVelRef.current?.publish(stop);
-    }, 300);
   }, []);
   
   const stop = useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     send(0, 0);
   }, [send]);
   
