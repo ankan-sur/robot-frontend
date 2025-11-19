@@ -136,6 +136,12 @@ export function MappingPanel({ goToLab, onStop, disabledMove }: Props) {
       )}
 
       <div className="space-y-4">
+        {/* Teleop moved higher for quicker access */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase">Teleop</label>
+          <TeleopBlock />
+        </div>
+
         {/* Current Status */}
         <div className={`rounded p-3 border ${
           mode === 'slam' ? 'bg-amber-50 border-amber-300' :
@@ -269,12 +275,6 @@ export function MappingPanel({ goToLab, onStop, disabledMove }: Props) {
               Stop
             </button>
           </div>
-        </div>
-
-        {/* Teleop */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase">Teleop</label>
-          <TeleopBlock />
         </div>
       </div>
     </section>

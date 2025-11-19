@@ -1,7 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { useMap, useRobotPose, usePointsOfInterest } from '../ros/hooks'
 
-export function MapView() {
+type Props = {
+  embedded?: boolean // when true, render without outer section/header for tab embedding
+}
+
+export function MapView({ embedded = false }: Props) {
   const map = useMap()
   const robotPose = useRobotPose() // subscribe to /robot/pose (map frame)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -80,20 +84,26 @@ export function MapView() {
     }
   }, [map, robotPose, pois])
 
+  const content = (
+    <div className="h-96 bg-slate-900 rounded overflow-hidden relative flex items-center justify-center">
+      {!map && (
+        <div className="text-center p-4 text-slate-400">
+          <div className="font-semibold mb-1">No map available</div>
+          <div className="text-sm">Start SLAM or Localization to display the map.</div>
+        </div>
+      )}
+      <canvas ref={canvasRef} className="w-full h-full object-contain" style={{ imageRendering: 'pixelated' }} />
+    </div>
+  )
+
+  if (embedded) return content
+
   return (
     <section className="bg-white rounded-lg shadow border border-slate-200 p-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-semibold text-slate-800">Map</h2>
       </div>
-      <div className="h-96 bg-slate-900 rounded overflow-hidden relative flex items-center justify-center">
-        {!map && (
-          <div className="text-center p-4 text-slate-400">
-            <div className="font-semibold mb-1">No map available</div>
-            <div className="text-sm">Start SLAM or Localization to display the map.</div>
-          </div>
-        )}
-        <canvas ref={canvasRef} className="w-full h-full object-contain" style={{ imageRendering: 'pixelated' }} />
-      </div>
+      {content}
     </section>
   )
 }
