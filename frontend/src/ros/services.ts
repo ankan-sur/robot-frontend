@@ -70,3 +70,12 @@ export async function cancelNavigation(goalId?: number[] | string): Promise<any>
     return await callService('/navigate_to_pose/_action/cancel_goal', 'action_msgs/CancelGoal', request)
   }
 }
+
+// Teleop emergency stop services
+export async function teleopEStop(): Promise<any> {
+  return callService(ROS_CONFIG.services.teleopEStop, 'std_srvs/Trigger', {})
+}
+
+export async function teleopClearEStop(): Promise<any> {
+  return callService(ROS_CONFIG.services.teleopClearEStop, 'std_srvs/Trigger', {})
+}

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { topics } from '../ros/ros'
 import { useRosConnection } from '../ros/hooks'
 import { getMode } from '../ros/services'
+import VirtualJoystick from './VirtualJoystick'
+import { teleopEStop, teleopClearEStop } from '../ros/services'
 
 export function TeleopBlock() {
   const { connected } = useRosConnection()
@@ -163,10 +165,23 @@ export function TeleopBlock() {
         </div>
       </div>
 
-      {/* Virtual Joystick placeholder for mobile */}
+      {/* Virtual Joystick for mobile */}
       <div className="block sm:hidden">
-        {/* TODO: Integrate <VirtualJoystick /> here for mobile touch control */}
-        <div className="my-2 text-center text-xs text-slate-400">Touch joystick coming soon</div>
+        <VirtualJoystick maxLinear={lin()} maxAngular={ang()} rateHz={20} />
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <button
+            onClick={() => teleopEStop().catch(()=>{})}
+            className="px-3 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold shadow-md"
+          >
+            STOP
+          </button>
+          <button
+            onClick={() => teleopClearEStop().catch(()=>{})}
+            className="px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold shadow-md"
+          >
+            Resume
+          </button>
+        </div>
       </div>
 
       {/* Diamond layout for desktop */}

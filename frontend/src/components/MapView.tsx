@@ -55,16 +55,16 @@ export function MapView() {
       ctx.textAlign = 'left'
       ctx.textBaseline = 'middle'
       pois.forEach(p => {
-        let px, py, yaw
-        if (p.pose) {
+        let px: number | null = null
+        let py: number | null = null
+        if (p.pose && typeof p.pose.x === 'number' && typeof p.pose.y === 'number') {
           px = (p.pose.x - origin.position.x) / resolution
           py = (p.pose.y - origin.position.y) / resolution
-          yaw = p.pose.yaw || 0
-        } else {
+        } else if (typeof p.x === 'number' && typeof p.y === 'number') {
           px = (p.x - origin.position.x) / resolution
           py = (p.y - origin.position.y) / resolution
-          yaw = 0
         }
+        if (px == null || py == null) return
         const cy = height - py
         ctx.fillStyle = '#16a34a'
         ctx.strokeStyle = '#064e3b'
@@ -72,7 +72,7 @@ export function MapView() {
         ctx.arc(px, cy, 3, 0, Math.PI * 2)
         ctx.fill()
         ctx.stroke()
-        const label = p.name || (p.pose ? `${p.pose.x.toFixed(2)}, ${p.pose.y.toFixed(2)}` : `${p.x.toFixed(2)}, ${p.y.toFixed(2)}`)
+        const label = p.name || (p.pose ? `${p.pose.x.toFixed(2)}, ${p.pose.y.toFixed(2)}` : `${(p.x as number).toFixed(2)}, ${(p.y as number).toFixed(2)}`)
         ctx.fillStyle = '#064e3b'
         ctx.fillText(label, px + 5, cy)
       })

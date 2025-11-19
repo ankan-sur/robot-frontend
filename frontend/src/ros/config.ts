@@ -10,7 +10,7 @@ export const ROS_CONFIG = {
   rosbridgeUrl: import.meta.env.VITE_ROSBRIDGE_URL || import.meta.env.VITE_ROSBRIDGE_FALLBACK_URL || defaultRosbridge,
   videoBase: import.meta.env.VITE_VIDEO_BASE || import.meta.env.VITE_VIDEO_FALLBACK_BASE || defaultVideoBase,
   topics: {
-    cmdVel: '/cmd_vel',
+    cmdVel: '/ui/cmd_vel',
     odom: '/odom',
     battery: '/ros_robot_controller/battery',
     camera: import.meta.env.VITE_CAMERA_TOPIC || '/ascamera/camera_publisher/rgb0/image',
@@ -35,6 +35,10 @@ export const ROS_CONFIG = {
     listMaps: '/list_maps', // returns JSON list (string) or an array field
     // getMode/startSlam/stopSlamAndSave removed (legacy SLAM service endpoints)
     navCancel: '/navigate_to_pose/cancel',
+  // Teleop safety
+  teleopEStop: '/teleop/estop',
+  teleopClearEStop: '/teleop/clear_estop',
+  systemMapRefresh: '/system/map/refresh',
     // Legacy/system services (still supported for fallback)
     systemMapSelect: '/system/map/select',
     systemMapInfo: '/system/map/info',
