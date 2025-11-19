@@ -1,23 +1,18 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { topics } from '../ros/ros'
 import { useRosConnection } from '../ros/hooks'
-import { getMode } from '../ros/services'
-import VirtualJoystick from './VirtualJoystick'
-import { teleopEStop, teleopClearEStop } from '../ros/services'
+import { getMode, teleopEStop, teleopClearEStop } from '../ros/services'
 
 export function TeleopBlock() {
   const { connected } = useRosConnection()
   const [currentMode, setCurrentMode] = useState<string | null>(null)
-  // Sliders (adjust while holding for immediate effect)
   const [linSet, setLinSet] = useState(0.3)
   const [angSet, setAngSet] = useState(1.0)
-  // Held command velocity
   const held = useRef({ vx: 0, wz: 0 })
   const intervalRef = useRef<number | null>(null)
   const keysRef = useRef<Set<string>>(new Set())
-  const PUBLISH_INTERVAL_MS = 100 // 10Hz per clarification
+  const PUBLISH_INTERVAL_MS = 100
 
-  // Max speed caps (mode-dependent)
   const MAX_LIN_BASE = 2.5
   const MAX_ANG_BASE = 2.5
   const MAX_LIN_SLAM = 1.5
@@ -25,7 +20,6 @@ export function TeleopBlock() {
   const effectiveMaxLin = () => currentMode === 'slam' ? MAX_LIN_SLAM : MAX_LIN_BASE
   const effectiveMaxAng = () => currentMode === 'slam' ? MAX_ANG_SLAM : MAX_ANG_BASE
 
-  // Fetch current mode periodically
   useEffect(() => {
     const fetchMode = async () => {
       try {
@@ -36,7 +30,7 @@ export function TeleopBlock() {
       }
     }
     fetchMode()
-    const interval = setInterval(fetchMode, 5000) // refresh every 5s
+    const interval = setInterval(fetchMode, 5000)
     return () => clearInterval(interval)
   }, [])
 
@@ -79,7 +73,6 @@ export function TeleopBlock() {
   const lin = () => Math.max(0, Math.min(effectiveMaxLin(), linSet))
   const ang = () => Math.max(0, Math.min(effectiveMaxAng(), angSet))
 
-  // If sliders change while moving, update held velocities immediately
   useEffect(() => {
     if (held.current.vx > 0) held.current.vx = lin()
     if (held.current.vx < 0) held.current.vx = -lin()
@@ -87,10 +80,8 @@ export function TeleopBlock() {
     if (held.current.wz < 0) held.current.wz = -ang()
   }, [linSet, angSet, currentMode])
 
-  // Keyboard teleop (W/S forward/back, A/D rotate, arrows alias)
   useEffect(() => {
     const recompute = () => {
-      // Linear
       if (keysRef.current.has('w') || keysRef.current.has('arrowup')) {
         held.current.vx = lin()
       } else if (keysRef.current.has('s') || keysRef.current.has('arrowdown')) {
@@ -98,7 +89,6 @@ export function TeleopBlock() {
       } else {
         held.current.vx = 0
       }
-      // Angular
       if (keysRef.current.has('a') || keysRef.current.has('arrowleft')) {
         held.current.wz = ang()
       } else if (keysRef.current.has('d') || keysRef.current.has('arrowright')) {
@@ -137,7 +127,7 @@ export function TeleopBlock() {
   }, [connected, linSet, angSet, currentMode])
 
   return (
-  <div className="space-y-3">
+    <div className="space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <div className="text-base font-medium text-blue-800">Teleop</div>
@@ -165,30 +155,11 @@ export function TeleopBlock() {
         </div>
       </div>
 
-      {/* Virtual Joystick for mobile */}
-      <div className="block sm:hidden">
-        <VirtualJoystick maxLinear={lin()} maxAngular={ang()} rateHz={20} />
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <button
-            onClick={() => teleopEStop().catch(()=>{})}
-            className="px-3 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold shadow-md"
-          >
-            STOP
-          </button>
-          <button
-            onClick={() => teleopClearEStop().catch(()=>{})}
-            className="px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold shadow-md"
-          >
-            Resume
-          </button>
-        </div>
-      </div>
-
-      {/* Diamond layout for desktop */}
-      <div className="hidden sm:grid grid-cols-3 gap-2 place-items-center select-none">
+      {/* Arrow/diamond layout (works on desktop and mobile touch) */}
+      <div className="grid grid-cols-3 gap-2 place-items-center select-none">
         <div />
         <button
-          className="w-20 h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
+          className="w-24 h-16 sm:w-20 sm:h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
           disabled={!connected}
           onMouseDown={guard(() => { held.current.vx = lin(); startLoop() })}
           onMouseUp={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() })}
@@ -201,7 +172,7 @@ export function TeleopBlock() {
         <div />
 
         <button
-          className="w-20 h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
+          className="w-24 h-16 sm:w-20 sm:h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
           disabled={!connected}
           onMouseDown={guard(() => { held.current.wz = ang(); startLoop() })}
           onMouseUp={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() })}
@@ -212,7 +183,7 @@ export function TeleopBlock() {
           ◀
         </button>
         <button
-          className="w-20 h-12 rounded bg-rose-100 hover:bg-rose-200 border border-rose-300 disabled:opacity-50"
+          className="w-24 h-16 sm:w-20 sm:h-12 rounded bg-rose-100 hover:bg-rose-200 border border-rose-300 disabled:opacity-50"
           disabled={!connected}
           onClick={guard(() => { held.current = { vx: 0, wz: 0 }; publishTwist(); stopLoopIfIdle() })}
           title="Stop"
@@ -220,7 +191,7 @@ export function TeleopBlock() {
           ■
         </button>
         <button
-          className="w-20 h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
+          className="w-24 h-16 sm:w-20 sm:h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
           disabled={!connected}
           onMouseDown={guard(() => { held.current.wz = -ang(); startLoop() })}
           onMouseUp={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() })}
@@ -233,7 +204,7 @@ export function TeleopBlock() {
 
         <div />
         <button
-          className="w-20 h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
+          className="w-24 h-16 sm:w-20 sm:h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
           disabled={!connected}
           onMouseDown={guard(() => { held.current.vx = -lin(); startLoop() })}
           onMouseUp={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() })}
@@ -244,6 +215,22 @@ export function TeleopBlock() {
           ▼
         </button>
         <div />
+      </div>
+
+      {/* Global STOP/Resume for all sizes */}
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <button
+          onClick={() => teleopEStop().catch(()=>{})}
+          className="px-3 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold shadow-md"
+        >
+          STOP
+        </button>
+        <button
+          onClick={() => teleopClearEStop().catch(()=>{})}
+          className="px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold shadow-md"
+        >
+          Resume
+        </button>
       </div>
 
       <div className="text-[11px] text-slate-500">Max lin {effectiveMaxLin().toFixed(1)} m/s (mode cap), ang {effectiveMaxAng().toFixed(1)} rad/s.</div>
