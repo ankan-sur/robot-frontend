@@ -113,6 +113,54 @@ export interface BatteryReading {
 const BATTERY_MIN_MV = 6000; // 6.0V (2S LiPo lower bound, adjust to your pack)
 const BATTERY_MAX_MV = 8400; // 8.4V (2S LiPo full charge)
 
+export function parseBatteryMessage(msg: any): BatteryReading | null {
+  let mv: number | null = null;
+  let v: number | null = null;
+  let pct: number | null = null;
+
+  const dataVal = msg?.data ?? msg?.value ?? null;
+  const voltageV = msg?.voltage ?? msg?.voltage_v ?? null;
+  const percentageField = msg?.percentage ?? msg?.percent ?? null;
+
+  if (typeof voltageV === 'number' && !isNaN(voltageV)) {
+    v = voltageV;
+    mv = Math.round(voltageV * 1000);
+  }
+
+  if (typeof dataVal === 'number' && !isNaN(dataVal)) {
+    if (dataVal > 100) {
+      // Likely millivolts
+      mv = dataVal;
+      v = dataVal / 1000;
+    } else {
+      // 0..100 percent or volts in small systems; assume percent here
+      pct = dataVal;
+    }
+  }
+
+  if (typeof percentageField === 'number' && !isNaN(percentageField)) {
+    // BatteryState uses 0..1
+    pct = percentageField <= 1 ? percentageField * 100 : percentageField;
+  }
+
+  // Compute missing percent from mV if needed
+  if ((pct == null || isNaN(pct)) && typeof mv === 'number') {
+    const clamped = Math.max(0, Math.min(100, ((mv - BATTERY_MIN_MV) / (BATTERY_MAX_MV - BATTERY_MIN_MV)) * 100));
+    pct = clamped;
+  }
+
+  // Round for stable UI
+  if (typeof v === 'number') v = Math.round(v * 100) / 100; // 2 decimals
+  if (typeof mv === 'number') mv = Math.round(mv);
+  if (typeof pct === 'number') pct = Math.max(0, Math.min(100, Math.round(pct)));
+
+  if (v == null && mv == null && pct == null) {
+    return null;
+  }
+
+  return { millivolts: mv ?? (v != null ? Math.round(v * 1000) : null), volts: v ?? (mv != null ? mv / 1000 : null), percent: pct ?? null };
+}
+
 export function useBattery(): BatteryReading | null {
   const [battery, setBattery] = useState<BatteryReading | null>(null);
   const connectionState = useConnectionWatcher();
@@ -317,13 +365,13 @@ export function useRobotState() {
       setRobotState(null);
       return;
     }
+    // Subscribe to canonical '/robot/state' and fall back to legacy '/robot_state'.
+    // We create two topics and accept messages from either. This makes the UI
+    // robust to small naming differences in bringup or remaps.
+    const primary = new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.robotState, messageType: ROS_CONFIG.messageTypes.robotState });
+    const legacyName = ROS_CONFIG.topics.robotState === '/robot/state' ? '/robot_state' : undefined;
+    const legacy = legacyName ? new ROSLIB.Topic({ ros, name: legacyName, messageType: ROS_CONFIG.messageTypes.robotState }) : null;
 
-    const stateTopic = new ROSLIB.Topic({
-      ros,
-      name: ROS_CONFIG.topics.robotState,
-      messageType: ROS_CONFIG.messageTypes.robotState
-    });
-    
     const handleMessage = (msg: any) => {
       let stateStrRaw: any = msg?.data ?? msg?.state ?? '';
       if (typeof stateStrRaw === 'string' && stateStrRaw.trim().startsWith('{')) {
@@ -344,10 +392,12 @@ export function useRobotState() {
       }
     };
 
-    stateTopic.subscribe(handleMessage);
-    
+    primary.subscribe(handleMessage);
+    if (legacy) legacy.subscribe(handleMessage);
+
     return () => {
-      stateTopic.unsubscribe(handleMessage);
+      try { primary.unsubscribe(handleMessage); } catch {}
+      if (legacy) try { legacy.unsubscribe(handleMessage); } catch {}
     };
   }, [connectionState]);
   
@@ -361,11 +411,22 @@ export function useCmdVel() {
   useEffect(() => {
     const handleConnectionChange = (state: ConnectionState) => {
       if (state === 'connected') {
-        cmdVelRef.current = new ROSLIB.Topic({
-          ros,
-          name: ROS_CONFIG.topics.cmdVel,
-          messageType: ROS_CONFIG.messageTypes.cmdVel
-        });
+        // Query rosbridge for available topics and prefer configured topic,
+        // but fall back to '/cmd_vel' if the UI topic isn't present.
+        try {
+          (ros as any).getTopics((res: any) => {
+            const available: string[] = res?.topics || [];
+            let chosen = ROS_CONFIG.topics.cmdVel;
+            if (!available.includes(chosen) && available.includes('/cmd_vel')) {
+              chosen = '/cmd_vel';
+            }
+            cmdVelRef.current = new ROSLIB.Topic({ ros, name: chosen, messageType: ROS_CONFIG.messageTypes.cmdVel });
+            console.info('cmd_vel topic selected:', chosen);
+          });
+        } catch (e) {
+          // Fallback: use configured name
+          cmdVelRef.current = new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.cmdVel, messageType: ROS_CONFIG.messageTypes.cmdVel });
+        }
       } else {
         cmdVelRef.current = null;
       }

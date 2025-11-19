@@ -2,6 +2,7 @@ import { Header } from './components/Header'
 import { MapView } from './components/MapView'
 import { TelemetryPanel } from './components/TelemetryPanel'
 import { DebugPanel } from './components/DebugPanel'
+import DiagnosticsPanel from './components/DiagnosticsPanel'
 import { MappingPanel } from './components/MappingPanel'
 import MapCameraTabs from './components/MapCameraTabs'
 import { useRosConnection, useCmdVel, useNavigateToPose, PointOfInterest } from './ros/hooks'
@@ -47,6 +48,7 @@ export default function App() {
           <div className="space-y-3 lg:sticky lg:top-3 self-start">
             <TelemetryPanel />
             <DebugPanel />
+            <DiagnosticsPanel />
           </div>
         </div>
 

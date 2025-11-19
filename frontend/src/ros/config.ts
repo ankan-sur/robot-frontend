@@ -23,7 +23,9 @@ export const ROS_CONFIG = {
     jointStates: '/joint_states',
     diagnostics: '/diagnostics',
     button: '/ros_robot_controller/button',
-    robotState: '/robot_state', // 'idle', 'responding_to_command', 'heading_to_charger'
+  // Prefer canonical '/robot/state' (used by system_topics). Keep legacy
+  // '/robot_state' as a fallback where needed.
+  robotState: '/robot/state', // 'idle', 'responding_to_command', 'heading_to_charger'
     rosout: '/rosout',
   },
   services: {
