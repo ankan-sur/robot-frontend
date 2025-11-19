@@ -77,8 +77,8 @@ export function TelemetryPanel() {
           <div className="flex items-center justify-between mb-2">
             <span className="text-base font-medium text-blue-800">Battery</span>
             <div className="text-right">
-              <div className="text-xl font-bold text-blue-900">{voltageV != null ? `${voltageV.toFixed(2)} V` : '—'}</div>
-              <div className="text-xs text-blue-700">{percent != null ? `${percent}%` : 'percentage unavailable'}</div>
+              <div className="text-xl font-bold text-blue-900">{percent != null ? `${percent}%` : '—'}</div>
+              <div className="text-xs text-blue-700">{voltageV != null ? `${voltageV.toFixed(2)} V` : 'voltage unavailable'}</div>
             </div>
           </div>
           <div className="h-3 w-full bg-blue-100 rounded overflow-hidden border border-blue-300">

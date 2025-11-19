@@ -72,7 +72,7 @@ export function DebugLog() {
   const visible = tab === 'all' ? logs : logs.filter(isErrLine)
 
   return (
-    <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
+    <section className="rounded-lg bg-gradient-to-br from-white to-blue-50 p-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Debug Log</h2>
         <div className="flex items-center gap-2">
