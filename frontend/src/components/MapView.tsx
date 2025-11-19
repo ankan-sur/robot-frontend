@@ -81,15 +81,15 @@ export function MapView() {
   }, [map, robotPose, pois])
 
   return (
-    <section className="bg-white p-4">
-      <div className="flex items-center justify-between mb-2 gap-3">
-        <h2 className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Navigation Map</h2>
+    <section className="bg-white rounded-lg shadow border border-slate-200 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold text-slate-800">Map</h2>
       </div>
-      <div className="h-96 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg overflow-hidden relative flex items-center justify-center">
+      <div className="h-96 bg-slate-900 rounded overflow-hidden relative flex items-center justify-center">
         {!map && (
-          <div className="text-center p-4 text-blue-700">
+          <div className="text-center p-4 text-slate-400">
             <div className="font-semibold mb-1">No map available</div>
-            <div className="text-sm">Start SLAM or Localization to publish <code>/map</code>.</div>
+            <div className="text-sm">Start SLAM or Localization to display the map.</div>
           </div>
         )}
         <canvas ref={canvasRef} className="w-full h-full object-contain" style={{ imageRendering: 'pixelated' }} />

@@ -1,18 +1,10 @@
-import { TeleopBlock } from './TeleopBlock'
 import { DebugLog } from './DebugLog'
 
 export function DebugPanel() {
   return (
-    <section className="rounded-lg border-2 border-blue-400 bg-gradient-to-br from-white to-blue-50 p-4 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Debug Panel</h2>
-      <div className="space-y-4">
-        <div className="rounded-lg border-2 border-blue-300 bg-white p-4">
-          <TeleopBlock />
-        </div>
-        <div className="rounded-lg border-2 border-blue-300 bg-white p-2">
-          <DebugLog />
-        </div>
-      </div>
+    <section className="bg-white rounded-lg shadow border border-slate-200 p-4">
+      <h2 className="text-lg font-semibold mb-3 text-slate-800">Debug Log</h2>
+      <DebugLog />
     </section>
   )
 }

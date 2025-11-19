@@ -20,7 +20,10 @@ export default function App() {
     }
 
     try {
-      await navigate(poi.x, poi.y, poi.yaw || 0);
+      const x = poi.pose?.x ?? poi.x ?? 0;
+      const y = poi.pose?.y ?? poi.y ?? 0;
+      const yaw = poi.pose?.yaw ?? poi.yaw ?? 0;
+      await navigate(x, y, yaw);
       console.log(`Navigated to ${poi.name}`);
     } catch (error: any) {
       console.error('Navigation error:', error);
@@ -29,23 +32,23 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-slate-100">
+    <div className="min-h-screen bg-slate-50">
       <Header title="HFH Robot Dashboard" />
-      <main className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
-          <MapView />
-          <DebugPanel />
-        </div>
-        <div className="lg:col-span-1 space-y-4">
+      <main className="max-w-7xl mx-auto p-3 space-y-3">
+        {/* Top: Camera and Telemetry side-by-side on desktop, stacked on mobile */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <VideoFeed />
-          <MappingPanel />
-          <Controls
-            goToLab={goToLab}
-            onStop={stop}
-            disabledMove={!connected}
-          />
           <TelemetryPanel />
         </div>
+        
+        {/* Map View */}
+        <MapView />
+        
+        {/* Consolidated Control Panel (Mapping + Mode + Navigation) */}
+        <MappingPanel goToLab={goToLab} onStop={stop} disabledMove={!connected} />
+        
+        {/* Debug panel at bottom */}
+        <DebugPanel />
       </main>
     </div>
   )
