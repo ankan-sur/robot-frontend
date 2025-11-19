@@ -31,11 +31,12 @@ export function DebugLog() {
     // ROS topic subscription
     const add = (s: string) => setLogs(prev => [...prev, s].slice(-1000))
     const onMsg = (m: any) => {
-      let line = ''
+      // Preserve raw message as much as possible so bracketed levels like [ERROR] remain visible.
       const name = m?.name ?? m?.logger ?? 'rosout'
       const lvl = m?.level ?? m?.severity ?? ''
       const text = m?.msg ?? m?.message ?? m?.data ?? JSON.stringify(m)
-      line = `[${name}] ${text} ${lvl !== '' ? `(lvl ${lvl})` : ''}`
+      let line = `[${name}] ${text}`
+      if (lvl !== '') line += ` (lvl ${lvl})`
       add(line)
     }
     try {
@@ -66,8 +67,13 @@ export function DebugLog() {
 
   const clearLogs = () => setLogs([])
   const isErrLine = (s: string) => {
+    // Match bracketed loglevel markers like [ERROR], [WARN], or textual markers
+    try {
+      const re = /\[(?:[^\]]*\b(ERROR|ERR|FATAL|WARN|WARNING)\b[^\]]*)\]/i
+      if (re.test(s)) return true
+    } catch {}
     const lower = s.toLowerCase()
-    return lower.includes('error') || lower.includes('fatal') || lower.includes('warn')
+    return lower.includes('error') || lower.includes('fatal') || lower.includes('warn') || lower.includes('warning')
   }
   const visible = tab === 'all' ? logs : logs.filter(isErrLine)
 

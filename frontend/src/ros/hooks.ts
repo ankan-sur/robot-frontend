@@ -1,4 +1,5 @@
-// Subscribe to /robot/pose (geometry_msgs/PoseStamped, frame_id: map)
+// Subscribe to robot pose. Prefer /amcl_pose (map frame, PoseWithCovarianceStamped) when available,
+// otherwise fall back to /robot/pose (PoseStamped published by system_topics or other nodes).
 export function useRobotPose() {
   const [pose, setPose] = useState<any | null>(null);
   const connectionState = useConnectionWatcher();
@@ -8,15 +9,56 @@ export function useRobotPose() {
       setPose(null);
       return;
     }
-    const poseTopic = new ROSLIB.Topic({
-      ros,
-      name: '/robot/pose',
-      messageType: 'geometry_msgs/PoseStamped'
-    });
-    const handle = (msg: any) => setPose(msg);
-    poseTopic.subscribe(handle);
-    return () => { poseTopic.unsubscribe(handle); };
+
+    let activeTopic: ROSLIB.Topic | null = null;
+    let legacyTopic: ROSLIB.Topic | null = null;
+    const handleMsg = (msg: any) => {
+      // Normalize PoseWithCovarianceStamped -> pose, PoseStamped -> pose
+      if (msg?.pose) {
+        // PoseWithCovarianceStamped has .pose, PoseStamped may also have .pose
+        setPose(msg);
+      } else if (msg?.position || msg?.pose?.position) {
+        setPose(msg);
+      } else {
+        setPose(msg);
+      }
+    };
+
+    // Try to query available topics and prefer /amcl_pose
+    try {
+      (ros as any).getTopics((res: any) => {
+        const available: string[] = res?.topics || [];
+        const preferred = available.includes('/amcl_pose') ? '/amcl_pose' : '/robot/pose';
+        const preferredType = preferred === '/amcl_pose' ? 'geometry_msgs/PoseWithCovarianceStamped' : 'geometry_msgs/PoseStamped';
+        try {
+          activeTopic = new ROSLIB.Topic({ ros, name: preferred, messageType: preferredType });
+          activeTopic.subscribe(handleMsg);
+        } catch (e) {
+          // fallback to robot/pose topic directly
+          try {
+            legacyTopic = new ROSLIB.Topic({ ros, name: '/robot/pose', messageType: 'geometry_msgs/PoseStamped' });
+            legacyTopic.subscribe(handleMsg);
+          } catch (e2) {
+            // no-op
+          }
+        }
+      });
+    } catch (e) {
+      // If getTopics not available, just subscribe to /robot/pose
+      try {
+        activeTopic = new ROSLIB.Topic({ ros, name: '/robot/pose', messageType: 'geometry_msgs/PoseStamped' });
+        activeTopic.subscribe(handleMsg);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    return () => {
+      try { if (activeTopic) activeTopic.unsubscribe(handleMsg); } catch {}
+      try { if (legacyTopic) legacyTopic.unsubscribe(handleMsg); } catch {}
+    };
   }, [connectionState]);
+
   return pose;
 }
 import { useEffect, useState, useRef, useCallback } from 'react';
