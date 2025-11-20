@@ -135,9 +135,11 @@ export function MapView({ embedded = false }: Props) {
       )}
       <div className="h-96 bg-slate-900 rounded overflow-hidden relative flex items-center justify-center">
         {!map && (
-          <div className="text-center p-4 text-slate-400">
-            <div className="font-semibold mb-1">No map available</div>
-            <div className="text-sm">Start SLAM or Localization to display the map.</div>
+          <div className="absolute inset-0 flex items-center justify-center text-center p-4 text-slate-400">
+            <div>
+              <div className="font-semibold mb-1">No map available</div>
+              <div className="text-sm">Start SLAM or Localization to display the map.</div>
+            </div>
           </div>
         )}
         <canvas 

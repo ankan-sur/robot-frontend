@@ -181,10 +181,10 @@ export function TeleopBlock() {
       )}
 
       {/* Touch-optimized Control Pad */}
-      <div className="grid grid-cols-3 gap-2 select-none">
+      <div className="grid grid-cols-3 gap-2 select-none max-w-sm mx-auto">
         <div />
         <button
-          className="h-20 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-2xl font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
+          className="h-16 lg:h-14 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-xl lg:text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
           disabled={!connected}
           onMouseDown={guard(() => { held.current.vx = lin; startLoop() })}
           onMouseUp={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() })}
@@ -197,7 +197,7 @@ export function TeleopBlock() {
         <div />
 
         <button
-          className="h-20 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-2xl font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
+          className="h-16 lg:h-14 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-xl lg:text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
           disabled={!connected}
           onMouseDown={guard(() => { held.current.wz = ang; startLoop() })}
           onMouseUp={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() })}
@@ -208,7 +208,7 @@ export function TeleopBlock() {
           ◀
         </button>
         <button
-          className="h-20 rounded-lg bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-2xl font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
+          className="h-16 lg:h-14 rounded-lg bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-xl lg:text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
           disabled={!connected}
           onClick={guard(() => { held.current = { vx: 0, wz: 0 }; publishTwist(); stopLoopIfIdle() })}
           title="Stop"
@@ -216,7 +216,7 @@ export function TeleopBlock() {
           ■
         </button>
         <button
-          className="h-20 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-2xl font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
+          className="h-16 lg:h-14 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-xl lg:text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
           disabled={!connected}
           onMouseDown={guard(() => { held.current.wz = -ang; startLoop() })}
           onMouseUp={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() })}
@@ -229,7 +229,7 @@ export function TeleopBlock() {
 
         <div />
         <button
-          className="h-20 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-2xl font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
+          className="h-16 lg:h-14 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-xl lg:text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
           disabled={!connected}
           onMouseDown={guard(() => { held.current.vx = -lin; startLoop() })}
           onMouseUp={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() })}
@@ -243,7 +243,7 @@ export function TeleopBlock() {
       </div>
 
       <div className="text-xs text-slate-500 text-center">
-        Touch buttons or use WASD/Arrow keys • Current: {lin.toFixed(2)} m/s, {ang.toFixed(2)} rad/s
+        Touch buttons or use WASD/Arrow keys • {lin.toFixed(2)} m/s, {ang.toFixed(2)} rad/s
       </div>
     </div>
   )
