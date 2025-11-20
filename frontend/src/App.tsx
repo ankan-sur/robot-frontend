@@ -23,6 +23,8 @@ export default function App() {
   const [showDebugLog, setShowDebugLog] = useState(false)
   const [robotIp, setRobotIp] = useState<string>('')
   const [wifiSsid, setWifiSsid] = useState<string>('')
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [saveMapName, setSaveMapName] = useState<string>('')
   
   const clearStatus = () => setTimeout(() => setStatusMsg(null), 3000)
 
@@ -79,17 +81,23 @@ export default function App() {
   }
 
   const handleStopAndSave = async () => {
-    const mapName = prompt('Enter map name:')
-    if (!mapName?.trim()) {
+    setShowSaveDialog(true)
+  }
+
+  const confirmSaveMap = async () => {
+    const mapName = saveMapName.trim()
+    if (!mapName) {
       setStatusMsg('[ERROR] Map name required')
       clearStatus()
       return
     }
 
+    setShowSaveDialog(false)
+    setSaveMapName('')
     setOperating(true)
     setStatusMsg('Saving map...')
     try {
-      const result = await stopSlamAndSave(mapName.trim())
+      const result = await stopSlamAndSave(mapName)
       console.log('Save result:', result)
       setStatusMsg(`[SUCCESS] Map "${mapName}" saved`)
       
@@ -108,6 +116,11 @@ export default function App() {
       setOperating(false)
       clearStatus()
     }
+  }
+
+  const cancelSaveDialog = () => {
+    setShowSaveDialog(false)
+    setSaveMapName('')
   }
 
   const handleLoadMap = async () => {
@@ -550,6 +563,46 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* Save Map Dialog Modal */}
+      {showSaveDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-white mb-4">Save Map</h2>
+            <p className="text-slate-300 mb-4">Enter a name for the map:</p>
+            <input
+              type="text"
+              value={saveMapName}
+              onChange={(e) => setSaveMapName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && saveMapName.trim()) {
+                  confirmSaveMap()
+                } else if (e.key === 'Escape') {
+                  cancelSaveDialog()
+                }
+              }}
+              placeholder="map_name"
+              autoFocus
+              className="w-full px-4 py-2 bg-slate-700 text-white border border-slate-600 rounded focus:outline-none focus:border-blue-500 mb-4"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={cancelSaveDialog}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmSaveMap}
+                disabled={!saveMapName.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white rounded font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
