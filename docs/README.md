@@ -28,6 +28,7 @@ Robot-side prerequisites
 - mDNS (Avahi) so `fordward.local` resolves on the LAN.
 
 Docs
+- **`docs/CURRENT_STATE.md`** – **START HERE**: Latest updates, bug fixes, deployment instructions, testing checklist
 - `docs/ARCHITECTURE.md` – how pieces fit (rosbridge + WVS + rosboard + system_topics)
 - `docs/HOSTNAME_AND_SERVE.md` – serve the UI at `fordward.local`
 - `docs/RASPBERRY_PI_SETUP.md` – configure a fresh robot (ROS 2 + rosbridge + WVS + rosboard)
