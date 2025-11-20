@@ -8,7 +8,6 @@ export function TeleopBlock() {
   const [currentMode, setCurrentMode] = useState<string | null>(null)
   const [linSet, setLinSet] = useState(0.3)
   const [angSet, setAngSet] = useState(1.0)
-  const [showSettings, setShowSettings] = useState(false)
   const held = useRef({ vx: 0, wz: 0 })
   const intervalRef = useRef<number | null>(null)
   const keysRef = useRef<Set<string>>(new Set())
@@ -129,62 +128,38 @@ export function TeleopBlock() {
 
   return (
     <div className="space-y-3">
-      {/* Header with Settings */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-slate-300">Teleop</div>
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded"
-        >
-          {showSettings ? 'Hide' : 'Speed ⚙️'}
-        </button>
-      </div>
-
-      {/* Settings Panel (collapsible) */}
-      {showSettings && (
-        <div className="bg-slate-900 rounded p-3 space-y-2 border border-slate-700">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs text-slate-400">Linear Speed</label>
-              <span className="text-xs font-mono text-white">{lin.toFixed(2)} m/s</span>
-            </div>
-            <input 
-              type="range" 
-              min={0} 
-              max={effectiveMaxLin} 
-              step={0.05} 
-              value={linSet} 
-              onChange={(e) => setLinSet(parseFloat(e.target.value))} 
-              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <div className="text-base font-medium text-blue-800">Teleop</div>
+          {currentMode && (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+              currentMode === 'slam' ? 'bg-yellow-200 text-yellow-800' :
+              currentMode === 'localization' ? 'bg-blue-200 text-blue-800' :
+              'bg-gray-200 text-gray-700'
+            }`}>
+              {currentMode.toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col gap-2 w-full max-w-md sm:flex-row sm:gap-3 sm:w-auto">
+          <div className="flex items-center gap-2 w-full">
+            <label className="text-xs text-slate-600 whitespace-nowrap">Linear (m/s)</label>
+            <input type="range" min={0} max={effectiveMaxLin} step={0.05} value={linSet} onChange={(e)=>setLinSet(parseFloat(e.target.value))} className="w-full sm:w-28" />
+            <span className="text-xs text-slate-600 w-10 text-right">{lin.toFixed(2)}</span>
           </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs text-slate-400">Angular Speed</label>
-              <span className="text-xs font-mono text-white">{ang.toFixed(2)} rad/s</span>
-            </div>
-            <input 
-              type="range" 
-              min={0} 
-              max={effectiveMaxAng} 
-              step={0.05} 
-              value={angSet} 
-              onChange={(e) => setAngSet(parseFloat(e.target.value))} 
-              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
-          </div>
-          <div className="text-xs text-slate-500 pt-2 border-t border-slate-700">
-            Max: {effectiveMaxLin.toFixed(1)} m/s linear, {effectiveMaxAng.toFixed(1)} rad/s angular
-            {currentMode === 'slam' && ' (SLAM limits)'}
+          <div className="flex items-center gap-2 w-full">
+            <label className="text-xs text-slate-600 whitespace-nowrap">Angular (rad/s)</label>
+            <input type="range" min={0} max={effectiveMaxAng} step={0.05} value={angSet} onChange={(e)=>setAngSet(parseFloat(e.target.value))} className="w-full sm:w-28" />
+            <span className="text-xs text-slate-600 w-10 text-right">{ang.toFixed(2)}</span>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Touch-optimized Control Pad */}
-      <div className="grid grid-cols-3 gap-2 select-none">
+      {/* Arrow/diamond layout (works on desktop and mobile touch) */}
+      <div className="grid grid-cols-3 gap-2 place-items-center select-none">
         <div />
         <button
-          className="h-20 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-2xl font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
+          className="w-24 h-16 sm:w-20 sm:h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
           disabled={!connected}
           onMouseDown={guard(() => { held.current.vx = lin; startLoop() })}
           onMouseUp={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() })}
@@ -197,7 +172,7 @@ export function TeleopBlock() {
         <div />
 
         <button
-          className="h-20 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-2xl font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
+          className="w-24 h-16 sm:w-20 sm:h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
           disabled={!connected}
           onMouseDown={guard(() => { held.current.wz = ang; startLoop() })}
           onMouseUp={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() })}
@@ -208,7 +183,7 @@ export function TeleopBlock() {
           ◀
         </button>
         <button
-          className="h-20 rounded-lg bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-2xl font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
+          className="w-24 h-16 sm:w-20 sm:h-12 rounded bg-rose-100 hover:bg-rose-200 border border-rose-300 disabled:opacity-50"
           disabled={!connected}
           onClick={guard(() => { held.current = { vx: 0, wz: 0 }; publishTwist(); stopLoopIfIdle() })}
           title="Stop"
@@ -216,7 +191,7 @@ export function TeleopBlock() {
           ■
         </button>
         <button
-          className="h-20 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-2xl font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
+          className="w-24 h-16 sm:w-20 sm:h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
           disabled={!connected}
           onMouseDown={guard(() => { held.current.wz = -ang; startLoop() })}
           onMouseUp={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() })}
@@ -229,7 +204,7 @@ export function TeleopBlock() {
 
         <div />
         <button
-          className="h-20 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-2xl font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
+          className="w-24 h-16 sm:w-20 sm:h-12 rounded bg-sky-100 hover:bg-sky-200 border border-sky-300 disabled:opacity-50"
           disabled={!connected}
           onMouseDown={guard(() => { held.current.vx = -lin; startLoop() })}
           onMouseUp={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() })}
@@ -242,9 +217,7 @@ export function TeleopBlock() {
         <div />
       </div>
 
-      <div className="text-xs text-slate-500 text-center">
-        Touch buttons or use WASD/Arrow keys • Current: {lin.toFixed(2)} m/s, {ang.toFixed(2)} rad/s
-      </div>
+      <div className="mt-2 text-[11px] text-slate-500">Max lin {effectiveMaxLin.toFixed(1)} m/s (mode cap), ang {effectiveMaxAng.toFixed(1)} rad/s.</div>
     </div>
   )
 }
