@@ -294,7 +294,7 @@ export default function App() {
               {/* Tab Content */}
               <div className="p-4">
                 {activeTab === 'map' ? (
-                  <MapView embedded />
+                  <MapView embedded mode={mode} />
                 ) : (
                   <VideoFeed embedded />
                 )}
@@ -346,22 +346,18 @@ export default function App() {
                 </button>
               </div>
 
-              {/* SLAM Mode: Mark POI + Save Map */}
+              {/* SLAM Mode: Just save map, that's it */}
               {mode === 'slam' && (
                 <div className="space-y-2">
-                  <button
-                    onClick={handleMarkPOI}
-                    disabled={operating}
-                    className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
-                  >
-                    📍 Mark POI
-                  </button>
+                  <div className="text-sm text-slate-400 text-center py-2">
+                    Drive around to map the area
+                  </div>
                   <button
                     onClick={handleStopAndSave}
                     disabled={operating}
-                    className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
+                    className="w-full px-4 py-3 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 text-white rounded font-bold text-base transition-colors disabled:cursor-not-allowed"
                   >
-                    💾 Stop & Save Map
+                    💾 SAVE MAP & STOP
                   </button>
                 </div>
               )}

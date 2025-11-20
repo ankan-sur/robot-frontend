@@ -3,9 +3,10 @@ import { useMap, useRobotPose, usePointsOfInterest } from '../ros/hooks'
 
 type Props = {
   embedded?: boolean // when true, render without outer section/header for tab embedding
+  mode?: string | null // current robot mode (slam, localization, idle)
 }
 
-export function MapView({ embedded = false }: Props) {
+export function MapView({ embedded = false, mode = null }: Props) {
   const map = useMap()
   const robotPose = useRobotPose() // subscribe to /robot/pose (map frame)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -34,42 +35,45 @@ export function MapView({ embedded = false }: Props) {
     }
     ctx.putImageData(imageData, 0, 0)
 
-    // draw robot using /robot/pose (map frame)
-    // Handle both PoseStamped (.pose) and PoseWithCovarianceStamped (.pose.pose)
-    let pos = robotPose?.pose?.pose?.position || robotPose?.pose?.position
-    let ori = robotPose?.pose?.pose?.orientation || robotPose?.pose?.orientation
-    
-    if (pos && ori) {
-      const mapX = (pos.x - origin.position.x) / resolution
-      const mapY = (pos.y - origin.position.y) / resolution
-      const canvasY = height - mapY
-      // yaw from quaternion
-      const yaw = 2 * Math.atan2(ori.z, ori.w)
+    // Only draw robot marker in localization/nav mode (not in SLAM)
+    if (mode === 'localization' || mode === 'idle') {
+      // draw robot using /robot/pose (map frame)
+      // Handle both PoseStamped (.pose) and PoseWithCovarianceStamped (.pose.pose)
+      let pos = robotPose?.pose?.pose?.position || robotPose?.pose?.position
+      let ori = robotPose?.pose?.pose?.orientation || robotPose?.pose?.orientation
       
-      // Draw robot as a larger, more visible arrow
-      ctx.save()
-      ctx.translate(mapX, canvasY)
-      ctx.rotate(yaw)
-      
-      // Draw filled triangle (robot)
-      ctx.fillStyle = '#3b82f6' // bright blue
-      ctx.strokeStyle = '#1e40af' // dark blue border
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.moveTo(0, -12)  // front point
-      ctx.lineTo(-8, 8)   // back left
-      ctx.lineTo(8, 8)    // back right
-      ctx.closePath()
-      ctx.fill()
-      ctx.stroke()
-      
-      // Add a direction indicator (small circle at front)
-      ctx.fillStyle = '#fbbf24' // yellow
-      ctx.beginPath()
-      ctx.arc(0, -12, 3, 0, Math.PI * 2)
-      ctx.fill()
-      
-      ctx.restore()
+      if (pos && ori) {
+        const mapX = (pos.x - origin.position.x) / resolution
+        const mapY = (pos.y - origin.position.y) / resolution
+        const canvasY = height - mapY
+        // yaw from quaternion
+        const yaw = 2 * Math.atan2(ori.z, ori.w)
+        
+        // Draw robot as a larger, more visible arrow
+        ctx.save()
+        ctx.translate(mapX, canvasY)
+        ctx.rotate(yaw)
+        
+        // Draw filled triangle (robot)
+        ctx.fillStyle = '#3b82f6' // bright blue
+        ctx.strokeStyle = '#1e40af' // dark blue border
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(0, -12)  // front point
+        ctx.lineTo(-8, 8)   // back left
+        ctx.lineTo(8, 8)    // back right
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+        
+        // Add a direction indicator (small circle at front)
+        ctx.fillStyle = '#fbbf24' // yellow
+        ctx.beginPath()
+        ctx.arc(0, -12, 3, 0, Math.PI * 2)
+        ctx.fill()
+        
+        ctx.restore()
+      }
     }
 
     // draw POIs (support legacy and new schema)
@@ -102,7 +106,7 @@ export function MapView({ embedded = false }: Props) {
       })
       ctx.restore()
     }
-  }, [map, robotPose, pois])
+  }, [map, robotPose, pois, mode])
 
   const content = (
     <div className="relative">
