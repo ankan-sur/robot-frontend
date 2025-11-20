@@ -69,10 +69,10 @@ export default function App() {
     setStatusMsg(null)
     try {
       await setMode('slam')
-      setStatusMsg('✓ Mapping mode started')
+      setStatusMsg('[SUCCESS] Mapping mode started')
       refresh()
     } catch (e: any) {
-      setStatusMsg(`✗ ${e?.message || 'Failed'}`)
+      setStatusMsg(`[ERROR] ${e?.message || 'Failed'}`)
     } finally {
       setOperating(false)
       clearStatus()
@@ -82,16 +82,17 @@ export default function App() {
   const handleStopAndSave = async () => {
     const mapName = prompt('Enter map name:')
     if (!mapName?.trim()) {
-      setStatusMsg('✗ Map name required')
+      setStatusMsg('[ERROR] Map name required')
       clearStatus()
       return
     }
 
     setOperating(true)
-    setStatusMsg(null)
+    setStatusMsg('Saving map...')
     try {
-      await stopSlamAndSave(mapName.trim())
-      setStatusMsg(`✓ Map "${mapName}" saved`)
+      const result = await stopSlamAndSave(mapName.trim())
+      console.log('Save result:', result)
+      setStatusMsg(`[SUCCESS] Map "${mapName}" saved`)
       
       // After saving, switch to idle mode
       try {
@@ -102,7 +103,8 @@ export default function App() {
       
       refresh()
     } catch (e: any) {
-      setStatusMsg(`✗ ${e?.message || 'Failed'}`)
+      console.error('Save failed:', e)
+      setStatusMsg(`[ERROR] ${e?.message || 'Failed to save map'}`)
     } finally {
       setOperating(false)
       clearStatus()
@@ -111,7 +113,7 @@ export default function App() {
 
   const handleLoadMap = async () => {
     if (!selectedMap) {
-      setStatusMsg('✗ Select a map first')
+      setStatusMsg('[ERROR] Select a map first')
       clearStatus()
       return
     }
@@ -121,10 +123,10 @@ export default function App() {
     try {
       await loadMap(selectedMap)
       setMapLoaded(true)
-      setStatusMsg(`✓ Loaded "${selectedMap}"`)
+      setStatusMsg(`[SUCCESS] Loaded "${selectedMap}"`)
       refresh()
     } catch (e: any) {
-      setStatusMsg(`✗ ${e?.message || 'Failed'}`)
+      setStatusMsg(`[ERROR] ${e?.message || 'Failed'}`)
       setMapLoaded(false)
     } finally {
       setOperating(false)
@@ -137,10 +139,10 @@ export default function App() {
     setStatusMsg(null)
     try {
       await setMode(newMode)
-      setStatusMsg(`✓ Switched to ${newMode === 'localization' ? 'Nav' : newMode}`)
+      setStatusMsg(`[SUCCESS] Switched to ${newMode === 'localization' ? 'Nav' : newMode}`)
       refresh()
     } catch (e: any) {
-      setStatusMsg(`✗ ${e?.message || 'Failed'}`)
+      setStatusMsg(`[ERROR] ${e?.message || 'Failed'}`)
     } finally {
       setOperating(false)
       clearStatus()
@@ -150,7 +152,7 @@ export default function App() {
   const handleMarkPOI = async () => {
     const poiName = prompt('Enter POI name:')
     if (!poiName?.trim()) {
-      setStatusMsg('✗ POI name required')
+      setStatusMsg('[ERROR] POI name required')
       clearStatus()
       return
     }
@@ -160,10 +162,10 @@ export default function App() {
     try {
       // markPOI will use current robot pose if pose not provided
       await markPOI({ name: poiName.trim() })
-      setStatusMsg(`✓ POI "${poiName}" marked`)
+      setStatusMsg(`[SUCCESS] POI "${poiName}" marked`)
       refresh()
     } catch (e: any) {
-      setStatusMsg(`✗ ${e?.message || 'Failed to mark POI'}`)
+      setStatusMsg(`[ERROR] ${e?.message || 'Failed to mark POI'}`)
     } finally {
       setOperating(false)
       clearStatus()
@@ -207,7 +209,7 @@ export default function App() {
                 <>
                   <span className="text-slate-400 hidden sm:inline">•</span>
                   <div className="hidden sm:flex items-center gap-2">
-                    <span className="text-xs text-slate-400">🔋</span>
+                    <span className="text-xs text-slate-400">BAT:</span>
                     <div className="w-20 h-3 bg-slate-700 rounded-full overflow-hidden">
                       <div 
                         className={`h-full transition-all ${
@@ -240,7 +242,7 @@ export default function App() {
                 showDebugLog ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
               }`}
             >
-              🐛 Logs
+              DEBUG Logs
             </button>
             <button
               onClick={() => setShowSettings(!showSettings)}
@@ -248,7 +250,7 @@ export default function App() {
                 showSettings ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
               }`}
             >
-              ⚙️
+              SETTINGS
             </button>
           </div>
         </div>
@@ -258,7 +260,7 @@ export default function App() {
       {statusMsg && (
         <div className="max-w-7xl mx-auto px-4">
           <div className={`mt-2 p-2 rounded text-base ${
-            statusMsg.startsWith('✓') ? 'bg-green-900 text-green-200 border border-green-700' : 
+            statusMsg.startsWith('[SUCCESS]') ? 'bg-green-900 text-green-200 border border-green-700' : 
             'bg-red-900 text-red-200 border border-red-700'
           }`}>
             {statusMsg}
@@ -284,7 +286,7 @@ export default function App() {
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                     }`}
                   >
-                    🗺️ Map
+                    MAP Map
                   </button>
                   <button
                     onClick={() => setActiveTab('camera')}
@@ -294,7 +296,7 @@ export default function App() {
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                     }`}
                   >
-                    📷 Camera
+                    CAMERA Camera
                   </button>
                 </div>
               </div>
@@ -365,7 +367,7 @@ export default function App() {
                     disabled={operating}
                     className="w-full px-4 py-3 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 text-white rounded font-bold text-base transition-colors disabled:cursor-not-allowed"
                   >
-                    💾 SAVE MAP & STOP
+                    SAVE SAVE MAP & STOP
                   </button>
                 </div>
               )}
@@ -395,7 +397,7 @@ export default function App() {
                     disabled={operating || !selectedMap || mapLoaded}
                     className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
                   >
-                    {mapLoaded ? '✓ Map Loaded' : 'Load Map'}
+                    {mapLoaded ? '[SUCCESS] Map Loaded' : 'Load Map'}
                   </button>
                   
                   {/* POI Dropdown - only show after map loaded */}
