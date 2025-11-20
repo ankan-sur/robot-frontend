@@ -17,6 +17,7 @@ export default function App() {
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
   const [selectedMap, setSelectedMap] = useState<string>('')
   const [selectedPoi, setSelectedPoi] = useState<string>('')
+  const [mapLoaded, setMapLoaded] = useState(false)
   const [activeTab, setActiveTab] = useState<'map' | 'camera'>('map')
   const [showSettings, setShowSettings] = useState(false)
   const [showDebugLog, setShowDebugLog] = useState(false)
@@ -24,6 +25,15 @@ export default function App() {
   const [wifiSsid, setWifiSsid] = useState<string>('')
   
   const clearStatus = () => setTimeout(() => setStatusMsg(null), 3000)
+
+  // Reset map selection when switching modes
+  useEffect(() => {
+    if (mode === 'idle') {
+      setMapLoaded(false)
+      setSelectedMap('')
+      setSelectedPoi('')
+    }
+  }, [mode])
 
   // Auto-show camera when in idle mode
   useEffect(() => {
@@ -102,10 +112,12 @@ export default function App() {
     setStatusMsg(null)
     try {
       await loadMap(selectedMap)
+      setMapLoaded(true)
       setStatusMsg(`✓ Loaded "${selectedMap}"`)
       refresh()
     } catch (e: any) {
       setStatusMsg(`✗ ${e?.message || 'Failed'}`)
+      setMapLoaded(false)
     } finally {
       setOperating(false)
       clearStatus()
@@ -117,7 +129,7 @@ export default function App() {
     setStatusMsg(null)
     try {
       await setMode(newMode)
-      setStatusMsg(`✓ Switched to ${newMode}`)
+      setStatusMsg(`✓ Switched to ${newMode === 'localization' ? 'Nav' : newMode}`)
       refresh()
     } catch (e: any) {
       setStatusMsg(`✗ ${e?.message || 'Failed'}`)
@@ -175,7 +187,7 @@ export default function App() {
                 mode === 'localization' ? 'text-blue-400' :
                 'text-slate-400'
               }`}>
-                {mode?.toUpperCase() || 'IDLE'}
+                {mode === 'localization' ? 'NAV' : mode?.toUpperCase() || 'IDLE'}
               </span>
               {robotIp && (
                 <>
@@ -191,7 +203,7 @@ export default function App() {
                     (battery?.percent ?? 0) < 40 ? 'text-yellow-400' :
                     'text-green-400'
                   }`}>
-                    🔋 {battery.volts.toFixed(1)}V ({Math.round(battery?.percent ?? 0)}%)
+                    🔋 {battery.volts.toFixed(1)}V ({Math.round(battery?.percent ?? 0)}%) | {battery.millivolts}mV
                   </span>
                 </>
               )}
@@ -314,7 +326,7 @@ export default function App() {
                   disabled={operating || mode === 'localization'}
                   className="px-2 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
                 >
-                  Localize
+                  Nav
                 </button>
               </div>
 
@@ -338,13 +350,18 @@ export default function App() {
                 </div>
               )}
 
-              {/* Localization Mode: Map + POI selection */}
+              {/* Nav Mode (Localization): Map selection → POI selection */}
               {mode === 'localization' && (
                 <div className="space-y-2">
+                  <div className="text-xs text-slate-400 mb-1">Step 1: Select Map</div>
                   <select
                     value={selectedMap}
-                    onChange={(e) => setSelectedMap(e.target.value)}
-                    disabled={operating}
+                    onChange={(e) => {
+                      setSelectedMap(e.target.value)
+                      setMapLoaded(false)
+                      setSelectedPoi('')
+                    }}
+                    disabled={operating || mapLoaded}
                     className="w-full px-3 py-2 bg-slate-700 text-white text-sm rounded border border-slate-600 focus:border-blue-500 focus:outline-none disabled:bg-slate-900 disabled:text-slate-600"
                   >
                     <option value="">Select map...</option>
@@ -352,17 +369,19 @@ export default function App() {
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
+                  
                   <button
                     onClick={handleLoadMap}
-                    disabled={operating || !selectedMap}
+                    disabled={operating || !selectedMap || mapLoaded}
                     className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
                   >
-                    Load Map
+                    {mapLoaded ? '✓ Map Loaded' : 'Load Map'}
                   </button>
                   
                   {/* POI Dropdown - only show after map loaded */}
-                  {activeMap && (
+                  {mapLoaded && activeMap && (
                     <>
+                      <div className="text-xs text-slate-400 mb-1 mt-3 pt-3 border-t border-slate-700">Step 2: Select POI</div>
                       <select
                         value={selectedPoi}
                         onChange={(e) => setSelectedPoi(e.target.value)}
@@ -375,34 +394,20 @@ export default function App() {
                         ))}
                       </select>
                       {pois.length === 0 && (
-                        <div className="text-xs text-slate-500 text-center">No POIs for this map</div>
+                        <div className="text-xs text-slate-500 text-center mt-1">No POIs for this map</div>
+                      )}
+                      {pois.length > 0 && (
+                        <div className="text-xs text-slate-400 text-center mt-1">{pois.length} POI{pois.length !== 1 ? 's' : ''} available</div>
                       )}
                     </>
                   )}
                 </div>
               )}
 
-              {/* Idle Mode: Show map loader */}
-              {mode === 'idle' && maps.length > 0 && (
-                <div className="pt-3 border-t border-slate-700">
-                  <select
-                    value={selectedMap}
-                    onChange={(e) => setSelectedMap(e.target.value)}
-                    disabled={operating}
-                    className="w-full px-3 py-2 mb-2 bg-slate-700 text-white text-sm rounded border border-slate-600 focus:border-blue-500 focus:outline-none disabled:bg-slate-900 disabled:text-slate-600"
-                  >
-                    <option value="">Select map...</option>
-                    {maps.map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handleLoadMap}
-                    disabled={operating || !selectedMap}
-                    className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
-                  >
-                    Load Map
-                  </button>
+              {/* Idle Mode: No map/POI controls needed */}
+              {mode === 'idle' && (
+                <div className="text-sm text-slate-500 text-center py-4 border-t border-slate-700">
+                  Idle mode - No navigation active
                 </div>
               )}
             </div>
