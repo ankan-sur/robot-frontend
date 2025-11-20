@@ -31,12 +31,24 @@ export function useRobotPose() {
         const preferred = available.includes('/amcl_pose') ? '/amcl_pose' : '/robot/pose';
         const preferredType = preferred === '/amcl_pose' ? 'geometry_msgs/PoseWithCovarianceStamped' : 'geometry_msgs/PoseStamped';
         try {
-          activeTopic = new ROSLIB.Topic({ ros, name: preferred, messageType: preferredType });
+          activeTopic = new ROSLIB.Topic({ 
+            ros, 
+            name: preferred, 
+            messageType: preferredType,
+            throttle_rate: 100,  // 10 Hz - smooth robot tracking without overload
+            queue_length: 1,
+          } as any);
           activeTopic.subscribe(handleMsg);
         } catch (e) {
           // fallback to robot/pose topic directly
           try {
-            legacyTopic = new ROSLIB.Topic({ ros, name: '/robot/pose', messageType: 'geometry_msgs/PoseStamped' });
+            legacyTopic = new ROSLIB.Topic({ 
+              ros, 
+              name: '/robot/pose', 
+              messageType: 'geometry_msgs/PoseStamped',
+              throttle_rate: 100,
+              queue_length: 1,
+            } as any);
             legacyTopic.subscribe(handleMsg);
           } catch (e2) {
             // no-op
@@ -46,7 +58,13 @@ export function useRobotPose() {
     } catch (e) {
       // If getTopics not available, just subscribe to /robot/pose
       try {
-        activeTopic = new ROSLIB.Topic({ ros, name: '/robot/pose', messageType: 'geometry_msgs/PoseStamped' });
+        activeTopic = new ROSLIB.Topic({ 
+          ros, 
+          name: '/robot/pose', 
+          messageType: 'geometry_msgs/PoseStamped',
+          throttle_rate: 100,
+          queue_length: 1,
+        } as any);
         activeTopic.subscribe(handleMsg);
       } catch (e) {
         // ignore
@@ -132,8 +150,10 @@ export function useOdom() {
     const odomTopic = new ROSLIB.Topic({
       ros,
       name: ROS_CONFIG.topics.odom,
-      messageType: ROS_CONFIG.messageTypes.odom
-    });
+      messageType: ROS_CONFIG.messageTypes.odom,
+      throttle_rate: 200,  // 5 Hz for UI updates
+      queue_length: 1,
+    } as any);
 
     const handleMessage = (msg: Odometry) => setOdom(msg);
     odomTopic.subscribe((msg: any) => handleMessage(msg));
@@ -216,6 +236,8 @@ export function useBattery(): BatteryReading | null {
     const batteryTopic = new ROSLIB.Topic({
       ros,
       name: ROS_CONFIG.topics.battery,
+      throttle_rate: 2000,  // 0.5 Hz - battery doesn't change quickly
+      queue_length: 1,
     } as any);
 
     const handleMessage = (msg: any) => {
@@ -302,8 +324,10 @@ export function useIMURPY() {
     const imuTopic = new ROSLIB.Topic({
       ros,
       name: ROS_CONFIG.topics.imuRpy,
-      messageType: ROS_CONFIG.messageTypes.imuRpy
-    });
+      messageType: ROS_CONFIG.messageTypes.imuRpy,
+      throttle_rate: 200,  // 5 Hz
+      queue_length: 1,
+    } as any);
     
     const handleMessage = (msg: any) => {
       const vector = msg?.vector ?? msg;
@@ -343,8 +367,10 @@ export function useJointStates() {
     const jointTopic = new ROSLIB.Topic({
       ros,
       name: ROS_CONFIG.topics.jointStates,
-      messageType: ROS_CONFIG.messageTypes.jointStates
-    });
+      messageType: ROS_CONFIG.messageTypes.jointStates,
+      throttle_rate: 500,  // 2 Hz
+      queue_length: 1,
+    } as any);
     
     const handleMessage = (msg: any) => {
       setJointStates({

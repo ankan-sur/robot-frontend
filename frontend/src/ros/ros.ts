@@ -76,13 +76,14 @@ export function onConnectionChange(callback: (state: ConnectionState) => void): 
 
 // Convenience topics map (optional): provides ready-to-use ROSLIB.Topic instances
 // Only use the ones that exist in your system; others will be harmless if unused.
+// Throttle high-frequency topics to reduce rosbridge load with multiple clients
 export const topics = {
   // Core
   cmdVel: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.cmdVel, messageType: ROS_CONFIG.messageTypes.cmdVel }),
-  odom: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.odom, messageType: ROS_CONFIG.messageTypes.odom }),
-  battery: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.battery, messageType: ROS_CONFIG.messageTypes.battery }),
+  odom: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.odom, messageType: ROS_CONFIG.messageTypes.odom, throttle_rate: 200, queue_length: 1 }),  // 5 Hz
+  battery: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.battery, messageType: ROS_CONFIG.messageTypes.battery, throttle_rate: 2000, queue_length: 1 }),  // 0.5 Hz
 
-  robotState: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.robotState, messageType: ROS_CONFIG.messageTypes.robotState }),
-  rosout: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.rosout, messageType: ROS_CONFIG.messageTypes.rosout }),
-  navStatus: new ROSLIB.Topic({ ros, name: (ROS_CONFIG.nav?.statusTopic || '/navigate_to_pose/status'), messageType: ROS_CONFIG.messageTypes.navStatus }),
+  robotState: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.robotState, messageType: ROS_CONFIG.messageTypes.robotState, throttle_rate: 500, queue_length: 1 }),  // 2 Hz
+  rosout: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.rosout, messageType: ROS_CONFIG.messageTypes.rosout, throttle_rate: 500, queue_length: 5 }),  // 2 Hz, keep recent logs
+  navStatus: new ROSLIB.Topic({ ros, name: (ROS_CONFIG.nav?.statusTopic || '/navigate_to_pose/status'), messageType: ROS_CONFIG.messageTypes.navStatus, throttle_rate: 1000, queue_length: 1 }),  // 1 Hz
 };
