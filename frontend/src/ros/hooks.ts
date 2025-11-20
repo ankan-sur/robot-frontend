@@ -233,12 +233,38 @@ export function useBattery(): BatteryReading | null {
       return;
     }
 
-    const batteryTopic = new ROSLIB.Topic({
-      ros,
-      name: ROS_CONFIG.topics.battery,
-      throttle_rate: 2000,  // 0.5 Hz - battery doesn't change quickly
-      queue_length: 1,
-    } as any);
+    // Wait for topic to be advertised before subscribing
+    let batteryTopic: ROSLIB.Topic | null = null;
+    let checkInterval: NodeJS.Timeout | null = null;
+
+    const trySubscribe = () => {
+      if (batteryTopic) return; // already subscribed
+
+      (ros as any).getTopics((result: any) => {
+        const topics = result?.topics || [];
+        if (!topics.includes(ROS_CONFIG.topics.battery)) {
+          // Topic not advertised yet, wait
+          return;
+        }
+
+        // Topic is available, subscribe
+        if (checkInterval) {
+          clearInterval(checkInterval);
+          checkInterval = null;
+        }
+
+        batteryTopic = new ROSLIB.Topic({
+          ros,
+          name: ROS_CONFIG.topics.battery,
+          throttle_rate: 2000,  // 0.5 Hz - battery doesn't change quickly
+          queue_length: 1,
+        } as any);
+
+        batteryTopic.subscribe(handleMessage);
+      }, (err: any) => {
+        console.error('Failed to query topics:', err);
+      });
+    };
 
     const handleMessage = (msg: any) => {
       // Try to interpret as BatteryState or simple numeric messages.
@@ -295,10 +321,15 @@ export function useBattery(): BatteryReading | null {
       }
     };
 
-    batteryTopic.subscribe(handleMessage);
+    // Try immediately
+    trySubscribe();
+
+    // Poll every 2 seconds until subscribed
+    checkInterval = setInterval(trySubscribe, 2000);
 
     return () => {
-      batteryTopic.unsubscribe(handleMessage);
+      if (checkInterval) clearInterval(checkInterval);
+      if (batteryTopic) batteryTopic.unsubscribe(handleMessage);
     };
   }, [connectionState]);
 
