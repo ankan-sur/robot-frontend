@@ -3,22 +3,28 @@ import { MapView } from './components/MapView'
 import { TeleopBlock } from './components/TeleopBlock'
 import { DebugLog } from './components/DebugLog'
 import VideoFeed from './components/VideoFeed'
-import { useRosConnection, useModeAndMaps, useRobotPose } from './ros/hooks'
-import { setMode, loadMap, stopSlamAndSave } from './ros/services'
+import { useRosConnection, useModeAndMaps, useRobotPose, useBattery, usePoisForMap, PointOfInterest } from './ros/hooks'
+import { setMode, loadMap, stopSlamAndSave, markPOI } from './ros/services'
 
 export default function App() {
   const { connected } = useRosConnection()
-  const { mode, activeMap, maps, loading, refresh } = useModeAndMaps()
+  const { mode, activeMap, maps, loading, error: mapsError, refresh } = useModeAndMaps()
   const robotPose = useRobotPose()
+  const battery = useBattery()
   
   const [operating, setOperating] = useState(false)
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
   const [selectedMap, setSelectedMap] = useState<string>('')
+  const [selectedPoi, setSelectedPoi] = useState<string>('')
+  const [mapLoadedSuccessfully, setMapLoadedSuccessfully] = useState(false)
   const [activeTab, setActiveTab] = useState<'map' | 'camera'>('map')
   const [showSettings, setShowSettings] = useState(false)
   const [showDebugLog, setShowDebugLog] = useState(false)
   const [robotIp, setRobotIp] = useState<string>('')
   const [wifiSsid, setWifiSsid] = useState<string>('')
+  
+  // Fetch POIs for currently loaded map (only in localization mode)
+  const pois = usePoisForMap(mapLoadedSuccessfully && mode === 'localization' ? activeMap || undefined : undefined)
   
   const clearStatus = () => setTimeout(() => setStatusMsg(null), 3000)
 
@@ -97,16 +103,66 @@ export default function App() {
 
     setOperating(true)
     setStatusMsg(null)
+    setMapLoadedSuccessfully(false)
     try {
       await loadMap(selectedMap)
+      setMapLoadedSuccessfully(true)
       setStatusMsg(`✓ Loaded "${selectedMap}"`)
       refresh()
     } catch (e: any) {
+      setMapLoadedSuccessfully(false)
       setStatusMsg(`✗ ${e?.message || 'Failed'}`)
     } finally {
       setOperating(false)
       clearStatus()
     }
+  }
+
+  const handleMarkPoi = async () => {
+    const poiName = prompt('Enter POI name:')
+    if (!poiName?.trim()) {
+      setStatusMsg('✗ POI name required')
+      clearStatus()
+      return
+    }
+
+    setOperating(true)
+    setStatusMsg(null)
+    try {
+      // markPOI will use current robot pose from backend
+      await markPOI({ name: poiName.trim() })
+      setStatusMsg(`✓ POI "${poiName}" marked`)
+      console.log(`POI "${poiName}" marked at current robot pose`)
+    } catch (e: any) {
+      setStatusMsg(`✗ ${e?.message || 'Failed to mark POI'}`)
+      console.error('Mark POI failed:', e)
+    } finally {
+      setOperating(false)
+      clearStatus()
+    }
+  }
+
+  const handleNavigateToPoi = () => {
+    if (!selectedPoi) {
+      setStatusMsg('✗ Select a POI first')
+      clearStatus()
+      return
+    }
+    
+    const poi = pois.find(p => p.name === selectedPoi)
+    if (!poi) {
+      setStatusMsg('✗ POI not found')
+      clearStatus()
+      return
+    }
+
+    // Stub: will integrate navigate_to_pose action later
+    const x = poi.pose?.x ?? poi.x ?? 0
+    const y = poi.pose?.y ?? poi.y ?? 0
+    const yaw = poi.pose?.yaw ?? poi.yaw ?? 0
+    console.log(`Navigate to POI "${selectedPoi}" at (${x.toFixed(2)}, ${y.toFixed(2)}, yaw: ${yaw.toFixed(2)})`)
+    setStatusMsg(`🚀 Navigation stub: target "${selectedPoi}"`)
+    clearStatus()
   }
 
   const handleSetMode = async (newMode: string) => {
@@ -155,6 +211,19 @@ export default function App() {
                 <>
                   <span className="text-slate-400 hidden sm:inline">•</span>
                   <span className="text-slate-400 hidden sm:inline">{robotIp}</span>
+                </>
+              )}
+              {battery && battery.volts && (
+                <>
+                  <span className="text-slate-400 hidden sm:inline">•</span>
+                  <span className={`hidden sm:inline font-semibold ${
+                    battery.percent !== null && battery.percent < 20 ? 'text-red-400' :
+                    battery.percent !== null && battery.percent < 40 ? 'text-yellow-400' :
+                    'text-green-400'
+                  }`}>
+                    🔋 {battery.volts.toFixed(1)}V
+                    {battery.percent !== null && ` (${Math.round(battery.percent)}%)`}
+                  </span>
                 </>
               )}
             </div>
@@ -253,65 +322,113 @@ export default function App() {
               )}
             </div>
 
-            {/* Mode Control - Shown on mobile right after map */}
+            {/* Mode Control - Compact layout */}
             <div className="bg-slate-800 rounded-lg border border-slate-700 p-4 lg:order-2 order-3">
               <div className="text-base font-semibold mb-3 text-slate-300">Mode Control</div>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => handleSetMode('idle')}
                   disabled={operating || mode === 'idle'}
-                  className="px-3 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed"
+                  className="px-2 py-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
                 >
                   Idle
                 </button>
                 <button
                   onClick={handleStartMapping}
                   disabled={operating || mode === 'slam'}
-                  className="px-3 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed"
+                  className="px-2 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
                 >
                   SLAM
                 </button>
                 <button
                   onClick={() => handleSetMode('localization')}
                   disabled={operating || mode === 'localization'}
-                  className="px-3 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed"
+                  className="px-2 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
                 >
                   Localize
                 </button>
               </div>
 
-              {/* SLAM Save Button */}
+              {/* SLAM Mode: Save Map + Mark POI */}
               {mode === 'slam' && (
-                <button
-                  onClick={handleStopAndSave}
-                  disabled={operating}
-                  className="w-full mt-3 px-4 py-2.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed"
-                >
-                  💾 Stop & Save Map
-                </button>
+                <div className="mt-3 pt-3 border-t border-slate-700 space-y-2">
+                  <button
+                    onClick={handleStopAndSave}
+                    disabled={operating}
+                    className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
+                  >
+                    💾 Stop & Save Map
+                  </button>
+                  <button
+                    onClick={handleMarkPoi}
+                    disabled={operating}
+                    className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
+                  >
+                    📍 Mark POI Here
+                  </button>
+                </div>
               )}
 
-              {/* Map Loader */}
-              {mode !== 'slam' && (
+              {/* Localization Mode: Map Loader + POI Navigation */}
+              {mode === 'localization' && (
                 <div className="mt-3 pt-3 border-t border-slate-700">
                   <select
                     value={selectedMap}
                     onChange={(e) => setSelectedMap(e.target.value)}
                     disabled={operating}
-                    className="w-full px-3 py-2.5 mb-2 bg-slate-700 text-white text-base rounded border border-slate-600 focus:border-blue-500 focus:outline-none disabled:bg-slate-900 disabled:text-slate-600"
+                    className="w-full px-3 py-2 mb-2 bg-slate-700 text-white text-sm rounded border border-slate-600 focus:border-blue-500 focus:outline-none disabled:bg-slate-900 disabled:text-slate-600"
                   >
                     <option value="">Select map...</option>
                     {maps.map(m => (
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
+                  
+                  {/* Show message if maps list is empty */}
+                  {!loading && maps.length === 0 && (
+                    <div className="text-xs text-slate-400 mb-2 text-center">
+                      {mapsError ? `Error: ${mapsError}` : 'No saved maps yet'}
+                    </div>
+                  )}
+                  
                   <button
                     onClick={handleLoadMap}
                     disabled={operating || !selectedMap}
-                    className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed"
+                    className="w-full px-4 py-2 mb-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
                   >
                     Load Map
                   </button>
+
+                  {/* POI Controls - Only show after map is loaded */}
+                  {mapLoadedSuccessfully && (
+                    <div className="pt-3 border-t border-slate-700">
+                      <select
+                        value={selectedPoi}
+                        onChange={(e) => setSelectedPoi(e.target.value)}
+                        disabled={operating || pois.length === 0}
+                        className="w-full px-3 py-2 mb-2 bg-slate-700 text-white text-sm rounded border border-slate-600 focus:border-blue-500 focus:outline-none disabled:bg-slate-900 disabled:text-slate-600"
+                      >
+                        <option value="">Select POI...</option>
+                        {pois.map(p => (
+                          <option key={p.name} value={p.name}>{p.name}</option>
+                        ))}
+                      </select>
+                      
+                      {pois.length === 0 && (
+                        <div className="text-xs text-slate-400 mb-2 text-center">
+                          No POIs for this map yet
+                        </div>
+                      )}
+                      
+                      <button
+                        onClick={handleNavigateToPoi}
+                        disabled={operating || !selectedPoi}
+                        className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
+                      >
+                        🚀 Navigate to POI
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

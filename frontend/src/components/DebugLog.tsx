@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { topics } from '../ros/ros'
 
-type TabKey = 'all' | 'errors'
-
 export function DebugLog() {
-  const [tab, setTab] = useState<TabKey>('all')
   const [logs, setLogs] = useState<string[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,16 +63,6 @@ export function DebugLog() {
   }, [logs, autoScroll])
 
   const clearLogs = () => setLogs([])
-  const isErrLine = (s: string) => {
-    // Match bracketed loglevel markers like [ERROR], [WARN], or textual markers
-    try {
-      const re = /\[(?:[^\]]*\b(ERROR|ERR|FATAL|WARN|WARNING)\b[^\]]*)\]/i
-      if (re.test(s)) return true
-    } catch {}
-    const lower = s.toLowerCase()
-    return lower.includes('error') || lower.includes('fatal') || lower.includes('warn') || lower.includes('warning')
-  }
-  const visible = tab === 'all' ? logs : logs.filter(isErrLine)
 
   return (
     <section className="rounded-lg bg-slate-800 border border-slate-700 p-4">
@@ -91,16 +78,11 @@ export function DebugLog() {
         </div>
       </div>
 
-      <div className="flex gap-2 mb-3">
-        <TabButton active={tab==='all'} onClick={()=>setTab('all')}>All</TabButton>
-        <TabButton active={tab==='errors'} onClick={()=>setTab('errors')}>Errors Only</TabButton>
-      </div>
-
       {error && (<div className="mb-2 p-2 text-sm text-red-300 bg-red-900/50 rounded border border-red-700">{error}</div>)}
 
       <div className="h-64 bg-slate-950 rounded-lg border border-slate-700 overflow-y-auto p-3 font-mono text-sm">
-        {visible.length === 0 && !error && (<div className="text-slate-500 text-center py-8">Waiting for logs...</div>)}
-        {visible.map((log, index) => {
+        {logs.length === 0 && !error && (<div className="text-slate-500 text-center py-8">Waiting for logs...</div>)}
+        {logs.map((log, index) => {
           let textColor = 'text-slate-300'
           const lower = String(log).toLowerCase()
           if (lower.includes('error') || lower.includes('fatal')) textColor = 'text-red-400'
@@ -111,13 +93,5 @@ export function DebugLog() {
         <div ref={logEndRef} />
       </div>
     </section>
-  )
-}
-
-function TabButton({ active, onClick, children }: { active: boolean; onClick?: ()=>void; children: any }) {
-  return (
-    <button onClick={onClick} className={`px-3 py-1.5 text-xs rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-      {children}
-    </button>
   )
 }

@@ -12,7 +12,7 @@ export const ROS_CONFIG = {
   topics: {
     cmdVel: '/ui/cmd_vel',
     odom: '/odom',
-    battery: '/ros_robot_controller/battery',
+    battery: '/ros_robot_controller_node/battery',
     camera: import.meta.env.VITE_CAMERA_TOPIC || '/ascamera/camera_publisher/rgb0/image',
     map: '/map',
     mapMetadata: '/map_metadata',
