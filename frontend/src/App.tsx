@@ -92,6 +92,14 @@ export default function App() {
     try {
       await stopSlamAndSave(mapName.trim())
       setStatusMsg(`✓ Map "${mapName}" saved`)
+      
+      // After saving, switch to idle mode
+      try {
+        await setMode('idle')
+      } catch (e: any) {
+        console.warn('Failed to switch to idle after save:', e)
+      }
+      
       refresh()
     } catch (e: any) {
       setStatusMsg(`✗ ${e?.message || 'Failed'}`)
