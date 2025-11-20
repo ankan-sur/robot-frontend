@@ -183,16 +183,15 @@ export default function App() {
                   <span className="text-slate-400 hidden sm:inline">{robotIp}</span>
                 </>
               )}
-              {battery && battery.volts && (
+              {battery?.volts && (
                 <>
                   <span className="text-slate-400 hidden sm:inline">•</span>
                   <span className={`hidden sm:inline font-semibold ${
-                    battery.percent !== null && battery.percent < 20 ? 'text-red-400' :
-                    battery.percent !== null && battery.percent < 40 ? 'text-yellow-400' :
+                    (battery?.percent ?? 0) < 20 ? 'text-red-400' :
+                    (battery?.percent ?? 0) < 40 ? 'text-yellow-400' :
                     'text-green-400'
                   }`}>
-                    🔋 {battery.volts.toFixed(1)}V
-                    {battery.percent !== null && ` (${Math.round(battery.percent)}%)`}
+                    🔋 {battery.volts.toFixed(1)}V ({Math.round(battery?.percent ?? 0)}%)
                   </span>
                 </>
               )}
