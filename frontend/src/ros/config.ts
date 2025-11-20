@@ -45,6 +45,11 @@ export const ROS_CONFIG = {
     systemMapSelect: '/system/map/select',
     systemMapInfo: '/system/map/info',
     systemMapPois: '/system/map/pois',
+    
+    // POI management services
+    markPoi: '/system/map/mark_poi',      // interfaces/SetString - add/update POI
+    deletePoi: '/system/map/delete_poi',  // interfaces/SetString - remove POI
+    renamePoi: '/system/map/rename_poi',  // interfaces/SetString - rename POI
   },
   actions: {
     navigateToPose: '/navigate_to_pose',

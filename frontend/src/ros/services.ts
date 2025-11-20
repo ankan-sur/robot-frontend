@@ -34,8 +34,40 @@ export async function stopSlamAndSave(mapName: string): Promise<any> {
   return callService(ROS_CONFIG.services.stopSlamAndSave, 'interfaces/SetString', { data: mapName })
 }
 
-export async function loadMap(name: string): Promise<any> {
-  return callService(ROS_CONFIG.services.loadMap, 'interfaces/SetString', { data: name })
+export async function loadMap(mapName: string): Promise<any> {
+  return callService(ROS_CONFIG.services.loadMap, 'interfaces/SetString', { data: mapName })
+}
+
+// POI Management Services
+export interface POI {
+  name: string
+  pose?: { x: number; y: number; yaw?: number }
+  x?: number
+  y?: number
+  yaw?: number
+}
+
+export async function markPOI(poi: POI, overwrite = false): Promise<any> {
+  const payload = {
+    name: poi.name,
+    pose: poi.pose || { x: poi.x || 0, y: poi.y || 0, yaw: poi.yaw || 0 },
+    overwrite
+  }
+  return callService(ROS_CONFIG.services.markPoi, 'interfaces/SetString', { 
+    data: JSON.stringify(payload) 
+  })
+}
+
+export async function deletePOI(poiName: string): Promise<any> {
+  return callService(ROS_CONFIG.services.deletePoi, 'interfaces/SetString', { 
+    data: JSON.stringify({ name: poiName }) 
+  })
+}
+
+export async function renamePOI(oldName: string, newName: string): Promise<any> {
+  return callService(ROS_CONFIG.services.renamePoi, 'interfaces/SetString', { 
+    data: JSON.stringify({ from: oldName, to: newName }) 
+  })
 }
 
 export async function listMaps(): Promise<string[]> {

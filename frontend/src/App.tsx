@@ -4,6 +4,7 @@ import { TelemetryPanel } from './components/TelemetryPanel'
 import { DebugPanel } from './components/DebugPanel'
 import DiagnosticsPanel from './components/DiagnosticsPanel'
 import { MappingPanel } from './components/MappingPanel'
+import { POIManager } from './components/POIManager'
 import MapCameraTabs from './components/MapCameraTabs'
 import { useRosConnection, useCmdVel, useNavigateToPose, PointOfInterest } from './ros/hooks'
 
@@ -49,6 +50,7 @@ export default function App() {
             <TelemetryPanel />
             <DebugPanel />
             <DiagnosticsPanel />
+            <POIManager />
           </div>
         </div>
 

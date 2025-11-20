@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMap, useRobotPose, usePointsOfInterest } from '../ros/hooks'
+import { markPOI } from '../ros/services'
 
 type Props = {
   embedded?: boolean // when true, render without outer section/header for tab embedding
@@ -11,6 +12,8 @@ export function MapView({ embedded = false }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pois = usePointsOfInterest()
   const mapReady = Boolean(map)
+  const [addPoiMode, setAddPoiMode] = useState(false)
+  const [statusMsg, setStatusMsg] = useState<string | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -84,15 +87,83 @@ export function MapView({ embedded = false }: Props) {
     }
   }, [map, robotPose, pois])
 
+  const handleCanvasClick = async (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!addPoiMode || !map || !canvasRef.current) return
+
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    const canvasX = (e.clientX - rect.left) * scaleX
+    const canvasY = (e.clientY - rect.top) * scaleY
+
+    // Convert canvas coordinates to map coordinates
+    const { width, height, resolution, origin } = map.info
+    const mapY = height - canvasY
+    const mapX = canvasX * resolution + origin.position.x
+    const mapYCoord = mapY * resolution + origin.position.y
+
+    const name = prompt('Enter POI name:')
+    if (!name || !name.trim()) {
+      setStatusMsg('✗ POI name required')
+      setTimeout(() => setStatusMsg(null), 3000)
+      return
+    }
+
+    try {
+      await markPOI({
+        name: name.trim(),
+        pose: { x: mapX, y: mapYCoord, yaw: 0 }
+      })
+      setStatusMsg(`✓ Added POI "${name}"`)
+      setTimeout(() => setStatusMsg(null), 3000)
+      setAddPoiMode(false)
+    } catch (err: any) {
+      setStatusMsg(`✗ Failed: ${err?.message || 'Unknown error'}`)
+      setTimeout(() => setStatusMsg(null), 3000)
+    }
+  }
+
   const content = (
-    <div className="h-96 bg-slate-900 rounded overflow-hidden relative flex items-center justify-center">
-      {!map && (
-        <div className="text-center p-4 text-slate-400">
-          <div className="font-semibold mb-1">No map available</div>
-          <div className="text-sm">Start SLAM or Localization to display the map.</div>
+    <div className="relative">
+      {statusMsg && (
+        <div className={`absolute top-2 left-1/2 transform -translate-x-1/2 z-10 px-3 py-2 rounded shadow-lg text-sm ${
+          statusMsg.startsWith('✓') ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+        }`}>
+          {statusMsg}
         </div>
       )}
-      <canvas ref={canvasRef} className="w-full h-full object-contain" style={{ imageRendering: 'pixelated' }} />
+      <div className="h-96 bg-slate-900 rounded overflow-hidden relative flex items-center justify-center">
+        {!map && (
+          <div className="text-center p-4 text-slate-400">
+            <div className="font-semibold mb-1">No map available</div>
+            <div className="text-sm">Start SLAM or Localization to display the map.</div>
+          </div>
+        )}
+        <canvas 
+          ref={canvasRef} 
+          className={`w-full h-full object-contain ${addPoiMode ? 'cursor-crosshair' : ''}`}
+          style={{ imageRendering: 'pixelated' }}
+          onClick={handleCanvasClick}
+        />
+      </div>
+      {map && (
+        <div className="mt-2 flex items-center justify-between">
+          <button
+            onClick={() => setAddPoiMode(!addPoiMode)}
+            className={`px-3 py-1 rounded text-sm font-medium ${
+              addPoiMode 
+                ? 'bg-orange-600 text-white hover:bg-orange-700' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {addPoiMode ? '✕ Cancel Add POI' : '📍 Click to Add POI'}
+          </button>
+          {addPoiMode && (
+            <span className="text-xs text-slate-600">Click on the map to place a POI</span>
+          )}
+        </div>
+      )}
     </div>
   )
 
