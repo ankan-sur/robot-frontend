@@ -3,20 +3,20 @@ import { MapView } from './components/MapView'
 import { TeleopBlock } from './components/TeleopBlock'
 import { DebugLog } from './components/DebugLog'
 import VideoFeed from './components/VideoFeed'
-import { useRosConnection, useModeAndMaps, useRobotPose, useBattery, usePoisForMap } from './ros/hooks'
-import { setMode, loadMap, stopSlamAndSave, markPOI } from './ros/services'
+import { useRosConnection, useModeAndMaps, useRobotPose, useBattery } from './ros/hooks'
+import { setMode, loadMap, stopSlamAndSave } from './ros/services'
 
 export default function App() {
   const { connected } = useRosConnection()
   const { mode, activeMap, maps, loading, refresh } = useModeAndMaps()
   const robotPose = useRobotPose()
   const battery = useBattery()
-  const pois = usePoisForMap(activeMap || undefined)
+  // Disable POI system for now - not ready
+  // const pois = usePoisForMap(activeMap || undefined)
   
   const [operating, setOperating] = useState(false)
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
   const [selectedMap, setSelectedMap] = useState<string>('')
-  const [selectedPoi, setSelectedPoi] = useState<string>('')
   const [mapLoaded, setMapLoaded] = useState(false)
   const [activeTab, setActiveTab] = useState<'map' | 'camera'>('map')
   const [showSettings, setShowSettings] = useState(false)
@@ -31,7 +31,6 @@ export default function App() {
     if (mode === 'idle') {
       setMapLoaded(false)
       setSelectedMap('')
-      setSelectedPoi('')
     }
   }, [mode])
 
@@ -149,29 +148,6 @@ export default function App() {
     }
   }
 
-  const handleMarkPOI = async () => {
-    const poiName = prompt('Enter POI name:')
-    if (!poiName?.trim()) {
-      setStatusMsg('[ERROR] POI name required')
-      clearStatus()
-      return
-    }
-
-    setOperating(true)
-    setStatusMsg(null)
-    try {
-      // markPOI will use current robot pose if pose not provided
-      await markPOI({ name: poiName.trim() })
-      setStatusMsg(`[SUCCESS] POI "${poiName}" marked`)
-      refresh()
-    } catch (e: any) {
-      setStatusMsg(`[ERROR] ${e?.message || 'Failed to mark POI'}`)
-    } finally {
-      setOperating(false)
-      clearStatus()
-    }
-  }
-
   // Get robot position for display
   const pose = robotPose?.pose?.pose || robotPose?.pose
   const x = pose?.position?.x ?? 0
@@ -183,62 +159,83 @@ export default function App() {
     <div className="min-h-screen bg-slate-900 text-white">
       {/* Responsive Header */}
       <div className="bg-slate-800 border-b border-slate-700 px-4 py-2">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">HFH Robot</h1>
-            <div className="flex items-center gap-2 text-sm">
-              <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400' : 'bg-red-400'}`} />
-              <span className={connected ? 'text-green-400' : 'text-red-400'}>
-                {connected ? 'Connected' : 'Disconnected'}
-              </span>
-              <span className="text-slate-400">•</span>
-              <span className={`font-semibold ${
-                mode === 'slam' ? 'text-amber-400' :
-                mode === 'localization' ? 'text-blue-400' :
-                'text-slate-400'
-              }`}>
-                {mode === 'localization' ? 'NAV' : mode?.toUpperCase() || 'IDLE'}
-              </span>
-              {robotIp && (
-                <>
-                  <span className="text-slate-400 hidden sm:inline">•</span>
-                  <span className="text-slate-400 hidden sm:inline">{robotIp}</span>
-                </>
-              )}
-              {battery?.volts && (
-                <>
-                  <span className="text-slate-400 hidden sm:inline">•</span>
-                  <div className="hidden sm:flex items-center gap-2">
-                    <span className="text-xs text-slate-400">BAT:</span>
-                    <div className="w-20 h-3 bg-slate-700 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all ${
-                          (battery?.percent ?? 0) < 20 ? 'bg-red-500' :
-                          (battery?.percent ?? 0) < 40 ? 'bg-yellow-500' :
-                          'bg-green-500'
-                        }`}
-                        style={{ width: `${Math.min(100, Math.max(0, battery?.percent ?? 0))}%` }}
-                      />
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-2 sm:mb-0">
+            <div>
+              <h1 className="text-xl font-bold">HFH Robot</h1>
+              <div className="flex items-center gap-2 text-sm">
+                <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400' : 'bg-red-400'}`} />
+                <span className={connected ? 'text-green-400' : 'text-red-400'}>
+                  {connected ? 'Connected' : 'Disconnected'}
+                </span>
+                <span className="text-slate-400">•</span>
+                <span className={`font-semibold ${
+                  mode === 'slam' ? 'text-amber-400' :
+                  mode === 'localization' ? 'text-blue-400' :
+                  'text-slate-400'
+                }`}>
+                  {mode === 'localization' ? 'NAV' : mode?.toUpperCase() || 'IDLE'}
+                </span>
+                {robotIp && (
+                  <>
+                    <span className="text-slate-400 hidden sm:inline">•</span>
+                    <span className="text-slate-400 hidden sm:inline">{robotIp}</span>
+                  </>
+                )}
+                {battery?.volts && (
+                  <>
+                    <span className="text-slate-400 hidden sm:inline">•</span>
+                    <div className="hidden sm:flex items-center gap-2">
+                      <span className="text-xs text-slate-400">BAT:</span>
+                      <div className="w-20 h-3 bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all ${
+                            (battery?.percent ?? 0) < 20 ? 'bg-red-500' :
+                            (battery?.percent ?? 0) < 40 ? 'bg-yellow-500' :
+                            'bg-green-500'
+                          }`}
+                          style={{ width: `${Math.min(100, Math.max(0, battery?.percent ?? 0))}%` }}
+                        />
+                      </div>
+                      <span className={`text-xs font-semibold ${
+                        (battery?.percent ?? 0) < 20 ? 'text-red-400' :
+                        (battery?.percent ?? 0) < 40 ? 'text-yellow-400' :
+                        'text-green-400'
+                      }`}>
+                        {Math.round(battery?.percent ?? 0)}%
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        {battery.volts.toFixed(1)}V
+                      </span>
                     </div>
-                    <span className={`text-xs font-semibold ${
-                      (battery?.percent ?? 0) < 20 ? 'text-red-400' :
-                      (battery?.percent ?? 0) < 40 ? 'text-yellow-400' :
-                      'text-green-400'
-                    }`}>
-                      {Math.round(battery?.percent ?? 0)}%
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      {battery.volts.toFixed(1)}V
-                    </span>
-                  </div>
-                </>
-              )}
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="hidden sm:flex gap-2">
+              <button
+                onClick={() => setShowDebugLog(!showDebugLog)}
+                className={`px-3 py-1.5 rounded text-sm font-semibold transition-colors ${
+                  showDebugLog ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
+                }`}
+              >
+                DEBUG Logs
+              </button>
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className={`px-3 py-1.5 rounded text-sm font-semibold transition-colors ${
+                  showSettings ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
+                }`}
+              >
+                SETTINGS
+              </button>
             </div>
           </div>
-          <div className="flex gap-2">
+          {/* Mobile-only button row */}
+          <div className="flex gap-2 sm:hidden">
             <button
               onClick={() => setShowDebugLog(!showDebugLog)}
-              className={`px-3 py-1.5 rounded text-sm font-semibold transition-colors ${
+              className={`flex-1 px-3 py-1.5 rounded text-sm font-semibold transition-colors ${
                 showDebugLog ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
               }`}
             >
@@ -246,7 +243,7 @@ export default function App() {
             </button>
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className={`px-3 py-1.5 rounded text-sm font-semibold transition-colors ${
+              className={`flex-1 px-3 py-1.5 rounded text-sm font-semibold transition-colors ${
                 showSettings ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
               }`}
             >
@@ -286,7 +283,7 @@ export default function App() {
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                     }`}
                   >
-                    MAP Map
+                    Map
                   </button>
                   <button
                     onClick={() => setActiveTab('camera')}
@@ -296,7 +293,7 @@ export default function App() {
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                     }`}
                   >
-                    CAMERA Camera
+                    Camera
                   </button>
                 </div>
               </div>
@@ -367,21 +364,20 @@ export default function App() {
                     disabled={operating}
                     className="w-full px-4 py-3 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 text-white rounded font-bold text-base transition-colors disabled:cursor-not-allowed"
                   >
-                    SAVE SAVE MAP & STOP
+                    Save Map & Stop
                   </button>
                 </div>
               )}
 
-              {/* Nav Mode (Localization): Map selection → POI selection */}
+              {/* Nav Mode (Localization): Map selection only */}
               {mode === 'localization' && (
                 <div className="space-y-2">
-                  <div className="text-xs text-slate-400 mb-1">Step 1: Select Map</div>
+                  <div className="text-xs text-slate-400 mb-1">Select Map</div>
                   <select
                     value={selectedMap}
                     onChange={(e) => {
                       setSelectedMap(e.target.value)
                       setMapLoaded(false)
-                      setSelectedPoi('')
                     }}
                     disabled={operating || mapLoaded}
                     className="w-full px-3 py-2 bg-slate-700 text-white text-sm rounded border border-slate-600 focus:border-blue-500 focus:outline-none disabled:bg-slate-900 disabled:text-slate-600"
@@ -399,37 +395,36 @@ export default function App() {
                   >
                     {mapLoaded ? '[SUCCESS] Map Loaded' : 'Load Map'}
                   </button>
-                  
-                  {/* POI Dropdown - only show after map loaded */}
-                  {mapLoaded && activeMap && (
-                    <>
-                      <div className="text-xs text-slate-400 mb-1 mt-3 pt-3 border-t border-slate-700">Step 2: Select POI</div>
-                      <select
-                        value={selectedPoi}
-                        onChange={(e) => setSelectedPoi(e.target.value)}
-                        disabled={operating || pois.length === 0}
-                        className="w-full px-3 py-2 bg-slate-700 text-white text-sm rounded border border-slate-600 focus:border-blue-500 focus:outline-none disabled:bg-slate-900 disabled:text-slate-600"
-                      >
-                        <option value="">Select POI...</option>
-                        {pois.map(poi => (
-                          <option key={poi.name} value={poi.name}>{poi.name}</option>
-                        ))}
-                      </select>
-                      {pois.length === 0 && (
-                        <div className="text-xs text-slate-500 text-center mt-1">No POIs for this map</div>
-                      )}
-                      {pois.length > 0 && (
-                        <div className="text-xs text-slate-400 text-center mt-1">{pois.length} POI{pois.length !== 1 ? 's' : ''} available</div>
-                      )}
-                    </>
-                  )}
                 </div>
               )}
 
-              {/* Idle Mode: No map/POI controls needed */}
+              {/* Idle Mode: View-only map display */}
               {mode === 'idle' && (
-                <div className="text-sm text-slate-500 text-center py-4 border-t border-slate-700">
-                  Idle mode - No navigation active
+                <div className="space-y-2">
+                  <div className="text-xs text-slate-400 mb-1">View Saved Map</div>
+                  <select
+                    value={selectedMap}
+                    onChange={(e) => {
+                      setSelectedMap(e.target.value)
+                      if (e.target.value) {
+                        // Just load the map for viewing, don't start localization
+                        loadMap(e.target.value).catch(err => {
+                          setStatusMsg(`[ERROR] Failed to load map: ${err.message}`)
+                          clearStatus()
+                        })
+                      }
+                    }}
+                    disabled={operating}
+                    className="w-full px-3 py-2 bg-slate-700 text-white text-sm rounded border border-slate-600 focus:border-blue-500 focus:outline-none disabled:bg-slate-900 disabled:text-slate-600"
+                  >
+                    <option value="">Select map to view...</option>
+                    {maps.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <div className="text-xs text-slate-500 text-center">
+                    View only - Switch to Nav mode to navigate
+                  </div>
                 </div>
               )}
             </div>
