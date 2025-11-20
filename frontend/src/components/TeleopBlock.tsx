@@ -131,10 +131,10 @@ export function TeleopBlock() {
     <div className="space-y-3">
       {/* Header with Settings */}
       <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-slate-300">Teleop</div>
+        <div className="text-base font-semibold text-slate-300">Teleop</div>
         <button
           onClick={() => setShowSettings(!showSettings)}
-          className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded"
+          className="px-2 py-1 text-sm bg-slate-700 hover:bg-slate-600 text-slate-300 rounded"
         >
           {showSettings ? 'Hide' : 'Speed ⚙️'}
         </button>
@@ -145,8 +145,8 @@ export function TeleopBlock() {
         <div className="bg-slate-900 rounded p-3 space-y-2 border border-slate-700">
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs text-slate-400">Linear Speed</label>
-              <span className="text-xs font-mono text-white">{lin.toFixed(2)} m/s</span>
+              <label className="text-sm text-slate-400">Linear Speed</label>
+              <span className="text-sm font-mono text-white">{lin.toFixed(2)} m/s</span>
             </div>
             <input 
               type="range" 
@@ -160,8 +160,8 @@ export function TeleopBlock() {
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs text-slate-400">Angular Speed</label>
-              <span className="text-xs font-mono text-white">{ang.toFixed(2)} rad/s</span>
+              <label className="text-sm text-slate-400">Angular Speed</label>
+              <span className="text-sm font-mono text-white">{ang.toFixed(2)} rad/s</span>
             </div>
             <input 
               type="range" 
@@ -173,7 +173,7 @@ export function TeleopBlock() {
               className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
             />
           </div>
-          <div className="text-xs text-slate-500 pt-2 border-t border-slate-700">
+          <div className="text-sm text-slate-500 pt-2 border-t border-slate-700">
             Max: {effectiveMaxLin.toFixed(1)} m/s linear, {effectiveMaxAng.toFixed(1)} rad/s angular
             {currentMode === 'slam' && ' (SLAM limits)'}
           </div>
@@ -242,7 +242,7 @@ export function TeleopBlock() {
         <div />
       </div>
 
-      <div className="text-xs text-slate-500 text-center">
+      <div className="text-sm text-slate-500 text-center">
         Touch buttons or use WASD/Arrow keys • {lin.toFixed(2)} m/s, {ang.toFixed(2)} rad/s
       </div>
     </div>

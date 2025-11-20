@@ -16,6 +16,7 @@ export default function App() {
   const [selectedMap, setSelectedMap] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'map' | 'camera'>('map')
   const [showSettings, setShowSettings] = useState(false)
+  const [showDebugLog, setShowDebugLog] = useState(false)
   const [robotIp, setRobotIp] = useState<string>('')
   const [wifiSsid, setWifiSsid] = useState<string>('')
   
@@ -136,8 +137,8 @@ export default function App() {
       <div className="bg-slate-800 border-b border-slate-700 px-4 py-2">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold">HFH Robot</h1>
-            <div className="flex items-center gap-2 text-xs">
+            <h1 className="text-xl font-bold">HFH Robot</h1>
+            <div className="flex items-center gap-2 text-sm">
               <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400' : 'bg-red-400'}`} />
               <span className={connected ? 'text-green-400' : 'text-red-400'}>
                 {connected ? 'Connected' : 'Disconnected'}
@@ -158,21 +159,31 @@ export default function App() {
               )}
             </div>
           </div>
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
-              showSettings ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-            }`}
-          >
-            ⚙️ Settings
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowDebugLog(!showDebugLog)}
+              className={`px-3 py-1.5 rounded text-sm font-semibold transition-colors ${
+                showDebugLog ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
+              }`}
+            >
+              🐛 Logs
+            </button>
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className={`px-3 py-1.5 rounded text-sm font-semibold transition-colors ${
+                showSettings ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
+              }`}
+            >
+              ⚙️
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Status Message */}
       {statusMsg && (
         <div className="max-w-7xl mx-auto px-4">
-          <div className={`mt-2 p-2 rounded text-sm ${
+          <div className={`mt-2 p-2 rounded text-base ${
             statusMsg.startsWith('✓') ? 'bg-green-900 text-green-200 border border-green-700' : 
             'bg-red-900 text-red-200 border border-red-700'
           }`}>
@@ -182,10 +193,10 @@ export default function App() {
       )}
 
       <main className="max-w-7xl mx-auto p-4">
-        {/* Responsive Grid: 2/3 left column, 1/3 right column on desktop; stack on mobile */}
+        {/* Responsive Grid: Stack on mobile, side-by-side on desktop */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left Column: Map/Camera + Mode Control + Logs (2/3 width on desktop) */}
-          <div className="lg:col-span-2 space-y-4">
+          {/* Left Column: Map/Camera + Mode Control + Debug Logs */}
+          <div className="lg:col-span-2 space-y-4 order-1 lg:order-1">
             {/* Map/Camera Tabs */}
             <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
               {/* Tab Headers */}
@@ -193,7 +204,7 @@ export default function App() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setActiveTab('map')}
-                    className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                    className={`px-4 py-2 rounded text-base font-medium transition-colors ${
                       activeTab === 'map' 
                         ? 'bg-blue-600 text-white' 
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
@@ -203,7 +214,7 @@ export default function App() {
                   </button>
                   <button
                     onClick={() => setActiveTab('camera')}
-                    className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                    className={`px-4 py-2 rounded text-base font-medium transition-colors ${
                       activeTab === 'camera' 
                         ? 'bg-blue-600 text-white' 
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
@@ -226,14 +237,14 @@ export default function App() {
               {/* Robot Pose Overlay (only show on map tab) */}
               {activeTab === 'map' && (
                 <div className="px-4 py-2 bg-slate-900/90 border-t border-slate-700">
-                  <div className="flex justify-between text-xs">
+                  <div className="flex justify-between text-sm">
                     <span className="text-slate-400">Position:</span>
                     <span className="font-mono">
                       x: {x.toFixed(2)}m, y: {y.toFixed(2)}m, θ: {(yaw * 180 / Math.PI).toFixed(0)}°
                     </span>
                   </div>
                   {activeMap && (
-                    <div className="flex justify-between text-xs mt-1">
+                    <div className="flex justify-between text-sm mt-1">
                       <span className="text-slate-400">Map:</span>
                       <span className="font-mono text-blue-400">{activeMap}</span>
                     </div>
@@ -242,28 +253,28 @@ export default function App() {
               )}
             </div>
 
-            {/* Mode Control */}
-            <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
-              <div className="text-sm font-semibold mb-3 text-slate-300">Mode Control</div>
+            {/* Mode Control - Shown on mobile right after map */}
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-4 lg:order-2 order-3">
+              <div className="text-base font-semibold mb-3 text-slate-300">Mode Control</div>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => handleSetMode('idle')}
                   disabled={operating || mode === 'idle'}
-                  className="px-3 py-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
+                  className="px-3 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed"
                 >
                   Idle
                 </button>
                 <button
                   onClick={handleStartMapping}
                   disabled={operating || mode === 'slam'}
-                  className="px-3 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
+                  className="px-3 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed"
                 >
                   SLAM
                 </button>
                 <button
                   onClick={() => handleSetMode('localization')}
                   disabled={operating || mode === 'localization'}
-                  className="px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed"
+                  className="px-3 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed"
                 >
                   Localize
                 </button>
@@ -274,7 +285,7 @@ export default function App() {
                 <button
                   onClick={handleStopAndSave}
                   disabled={operating}
-                  className="w-full mt-3 px-4 py-2 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 text-white rounded font-semibold transition-colors disabled:cursor-not-allowed"
+                  className="w-full mt-3 px-4 py-2.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed"
                 >
                   💾 Stop & Save Map
                 </button>
@@ -287,7 +298,7 @@ export default function App() {
                     value={selectedMap}
                     onChange={(e) => setSelectedMap(e.target.value)}
                     disabled={operating}
-                    className="w-full px-3 py-2 mb-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 focus:outline-none disabled:bg-slate-900 disabled:text-slate-600"
+                    className="w-full px-3 py-2.5 mb-2 bg-slate-700 text-white text-base rounded border border-slate-600 focus:border-blue-500 focus:outline-none disabled:bg-slate-900 disabled:text-slate-600"
                   >
                     <option value="">Select map...</option>
                     {maps.map(m => (
@@ -297,7 +308,7 @@ export default function App() {
                   <button
                     onClick={handleLoadMap}
                     disabled={operating || !selectedMap}
-                    className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold transition-colors disabled:cursor-not-allowed"
+                    className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-900 disabled:text-slate-600 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed"
                   >
                     Load Map
                   </button>
@@ -305,14 +316,16 @@ export default function App() {
               )}
             </div>
 
-            {/* Debug Logs */}
-            <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
-              <DebugLog />
-            </div>
+            {/* Debug Logs (collapsible) */}
+            {showDebugLog && (
+              <div className="lg:order-3 order-4">
+                <DebugLog />
+              </div>
+            )}
           </div>
 
-          {/* Right Column: Teleop + Settings (1/3 width on desktop) */}
-          <div className="space-y-4">
+          {/* Right Column: Teleop + Settings - Appears 2nd on mobile, right side on desktop */}
+          <div className="space-y-4 order-2 lg:order-2">
             {/* Teleop Control */}
             <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
               <TeleopBlock />
@@ -321,10 +334,10 @@ export default function App() {
             {/* Settings Panel (collapsible) */}
             {showSettings && (
               <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
-                <div className="text-sm font-semibold mb-3 text-slate-300">System Status</div>
+                <div className="text-base font-semibold mb-3 text-slate-300">System Status</div>
                 
                 {/* Network Info */}
-                <div className="space-y-2 text-xs font-mono mb-3 pb-3 border-b border-slate-700">
+                <div className="space-y-2 text-sm font-mono mb-3 pb-3 border-b border-slate-700">
                   <div className="flex justify-between">
                     <span className="text-slate-400">Robot IP:</span>
                     <span className="text-white">{robotIp || 'Unknown'}</span>
@@ -336,7 +349,7 @@ export default function App() {
                 </div>
 
                 {/* Quick Status */}
-                <div className="space-y-2 text-xs font-mono mb-3 pb-3 border-b border-slate-700">
+                <div className="space-y-2 text-sm font-mono mb-3 pb-3 border-b border-slate-700">
                   <div className="flex justify-between">
                     <span className="text-slate-400">ROS Connection:</span>
                     <span className={connected ? 'text-green-400' : 'text-red-400'}>
@@ -359,8 +372,8 @@ export default function App() {
 
                 {/* Essential Topics */}
                 <div className="mb-3 pb-3 border-t border-slate-700 pt-3">
-                  <div className="text-xs font-semibold text-slate-400 mb-2">Core Topics</div>
-                  <div className="space-y-1 text-xs font-mono text-slate-500">
+                  <div className="text-sm font-semibold text-slate-400 mb-2">Core Topics</div>
+                  <div className="space-y-1 text-sm font-mono text-slate-500">
                     <div>/scan - LaserScan</div>
                     <div>/odom - Odometry</div>
                     <div>/imu/data - IMU</div>
@@ -374,8 +387,8 @@ export default function App() {
 
                 {/* Services */}
                 <div className="mb-3 pb-3 border-t border-slate-700 pt-3">
-                  <div className="text-xs font-semibold text-slate-400 mb-2">Services</div>
-                  <div className="space-y-1 text-xs font-mono text-slate-500">
+                  <div className="text-sm font-semibold text-slate-400 mb-2">Services</div>
+                  <div className="space-y-1 text-sm font-mono text-slate-500">
                     <div>/get_mode</div>
                     <div>/set_mode</div>
                     <div>/load_map</div>
@@ -386,7 +399,7 @@ export default function App() {
                 <button
                   onClick={refresh}
                   disabled={operating || loading}
-                  className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? '⟳ Refreshing...' : '↻ Refresh'}
                 </button>

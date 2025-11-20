@@ -78,15 +78,15 @@ export function DebugLog() {
   const visible = tab === 'all' ? logs : logs.filter(isErrLine)
 
   return (
-    <section className="rounded-lg bg-gradient-to-br from-white to-blue-50 p-4">
+    <section className="rounded-lg bg-slate-800 border border-slate-700 p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Debug Log</h2>
+        <h2 className="text-base font-semibold text-slate-300">ROS Debug Log</h2>
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
-          <span className="text-xs text-blue-700">{isConnected ? 'Streaming' : 'Disconnected'}</span>
-          <button onClick={clearLogs} className="px-2 py-1 text-xs rounded bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors">Clear</button>
-          <label className="flex items-center gap-1 text-xs text-blue-700">
-            <input type="checkbox" checked={autoScroll} onChange={(e)=>setAutoScroll(e.target.checked)} /> Auto-scroll
+          <span className="text-xs text-slate-400">{isConnected ? 'Streaming' : 'Disconnected'}</span>
+          <button onClick={clearLogs} className="px-2 py-1 text-xs rounded bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors">Clear</button>
+          <label className="flex items-center gap-1 text-xs text-slate-400">
+            <input type="checkbox" checked={autoScroll} onChange={(e)=>setAutoScroll(e.target.checked)} className="accent-blue-500" /> Auto-scroll
           </label>
         </div>
       </div>
@@ -96,16 +96,16 @@ export function DebugLog() {
         <TabButton active={tab==='errors'} onClick={()=>setTab('errors')}>Errors Only</TabButton>
       </div>
 
-      {error && (<div className="mb-2 p-2 text-sm text-red-700 bg-red-50 rounded border border-red-200">{error}</div>)}
+      {error && (<div className="mb-2 p-2 text-sm text-red-300 bg-red-900/50 rounded border border-red-700">{error}</div>)}
 
-      <div className="h-64 bg-gradient-to-br from-slate-900 to-blue-900 rounded-lg border-2 border-blue-500 overflow-y-auto p-3 font-mono text-sm">
-        {visible.length === 0 && !error && (<div className="text-blue-300 text-center py-8">Waiting for logs...</div>)}
+      <div className="h-64 bg-slate-950 rounded-lg border border-slate-700 overflow-y-auto p-3 font-mono text-sm">
+        {visible.length === 0 && !error && (<div className="text-slate-500 text-center py-8">Waiting for logs...</div>)}
         {visible.map((log, index) => {
-          let textColor = 'text-blue-200'
+          let textColor = 'text-slate-300'
           const lower = String(log).toLowerCase()
-          if (lower.includes('error') || lower.includes('fatal')) textColor = 'text-red-300'
-          else if (lower.includes('warn')) textColor = 'text-yellow-300'
-          else if (lower.includes('info')) textColor = 'text-blue-300'
+          if (lower.includes('error') || lower.includes('fatal')) textColor = 'text-red-400'
+          else if (lower.includes('warn')) textColor = 'text-yellow-400'
+          else if (lower.includes('info')) textColor = 'text-blue-400'
           return (<div key={index} className={`${textColor} mb-1 leading-relaxed`}>{log}</div>)
         })}
         <div ref={logEndRef} />
@@ -116,7 +116,7 @@ export function DebugLog() {
 
 function TabButton({ active, onClick, children }: { active: boolean; onClick?: ()=>void; children: any }) {
   return (
-    <button onClick={onClick} className={`px-3 py-1.5 text-xs rounded border ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-300'}`}>
+    <button onClick={onClick} className={`px-3 py-1.5 text-xs rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
       {children}
     </button>
   )
