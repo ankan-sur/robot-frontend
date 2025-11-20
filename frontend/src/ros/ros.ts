@@ -6,19 +6,41 @@ export const ros = new ROSLIB.Ros({
   groovyCompatibility: false
 } as any);
 
+// Convenience topics map (optional): provides ready-to-use ROSLIB.Topic instances
+// Only use the ones that exist in your system; others will be harmless if unused.
+// Throttle high-frequency topics to reduce rosbridge load with multiple clients
+export const topics = {
+  // Core
+  cmdVel: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.cmdVel, messageType: ROS_CONFIG.messageTypes.cmdVel }),
+  odom: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.odom, messageType: ROS_CONFIG.messageTypes.odom, throttle_rate: 200, queue_length: 1 }),  // 5 Hz
+  battery: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.battery, messageType: ROS_CONFIG.messageTypes.battery, throttle_rate: 2000, queue_length: 1 }),  // 0.5 Hz
+
+  robotState: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.robotState, messageType: ROS_CONFIG.messageTypes.robotState, throttle_rate: 500, queue_length: 1 }),  // 2 Hz
+  rosout: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.rosout, messageType: ROS_CONFIG.messageTypes.rosout, throttle_rate: 500, queue_length: 5 }),  // 2 Hz, keep recent logs
+  navStatus: new ROSLIB.Topic({ ros, name: (ROS_CONFIG.nav?.statusTopic || '/navigate_to_pose/status'), messageType: ROS_CONFIG.messageTypes.navStatus, throttle_rate: 1000, queue_length: 1 }),  // 1 Hz
+};
 
 // Ensure we close the websocket cleanly when the page unloads. Browsers do not
 // always complete async work on reload, but explicitly closing reduces the
 // chance the server tries to write to an already-closed socket and spams errors.
 if (typeof window !== 'undefined' && window.addEventListener) {
   let reconnectTimeout: number | undefined;
+  let isUnloading = false;
   
-  window.addEventListener('beforeunload', () => {
+  const cleanup = () => {
+    isUnloading = true;
     try { 
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      // Unsubscribe all topics to prevent write-to-closed-socket errors
+      Object.values(topics).forEach(topic => {
+        try { topic.unsubscribe(); } catch (e) { /* ignore */ }
+      });
       ros.close(); 
     } catch (e) { /* ignore */ }
-  });
+  };
+  
+  window.addEventListener('beforeunload', cleanup);
+  window.addEventListener('unload', cleanup);
   
   // Add exponential backoff on disconnect to avoid flapping reconnects
   let reconnectAttempts = 0;
@@ -26,11 +48,16 @@ if (typeof window !== 'undefined' && window.addEventListener) {
   const baseDelay = 1000;
   
   ros.on('close', () => {
+    // Don't reconnect if we're unloading the page
+    if (isUnloading) return;
+    
     if (reconnectTimeout) clearTimeout(reconnectTimeout);
     const delay = Math.min(maxReconnectDelay, baseDelay * Math.pow(1.5, reconnectAttempts));
     reconnectAttempts++;
     reconnectTimeout = window.setTimeout(() => {
-      try { ros.connect(ROS_CONFIG.rosbridgeUrl); } catch (e) { /* ignore */ }
+      if (!isUnloading) {
+        try { ros.connect(ROS_CONFIG.rosbridgeUrl); } catch (e) { /* ignore */ }
+      }
     }, delay);
   });
   
@@ -73,17 +100,3 @@ export function onConnectionChange(callback: (state: ConnectionState) => void): 
   callback(connectionState); // Call immediately with current state
   return () => listeners.delete(callback);
 }
-
-// Convenience topics map (optional): provides ready-to-use ROSLIB.Topic instances
-// Only use the ones that exist in your system; others will be harmless if unused.
-// Throttle high-frequency topics to reduce rosbridge load with multiple clients
-export const topics = {
-  // Core
-  cmdVel: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.cmdVel, messageType: ROS_CONFIG.messageTypes.cmdVel }),
-  odom: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.odom, messageType: ROS_CONFIG.messageTypes.odom, throttle_rate: 200, queue_length: 1 }),  // 5 Hz
-  battery: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.battery, messageType: ROS_CONFIG.messageTypes.battery, throttle_rate: 2000, queue_length: 1 }),  // 0.5 Hz
-
-  robotState: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.robotState, messageType: ROS_CONFIG.messageTypes.robotState, throttle_rate: 500, queue_length: 1 }),  // 2 Hz
-  rosout: new ROSLIB.Topic({ ros, name: ROS_CONFIG.topics.rosout, messageType: ROS_CONFIG.messageTypes.rosout, throttle_rate: 500, queue_length: 5 }),  // 2 Hz, keep recent logs
-  navStatus: new ROSLIB.Topic({ ros, name: (ROS_CONFIG.nav?.statusTopic || '/navigate_to_pose/status'), messageType: ROS_CONFIG.messageTypes.navStatus, throttle_rate: 1000, queue_length: 1 }),  // 1 Hz
-};

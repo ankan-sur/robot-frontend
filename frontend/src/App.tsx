@@ -198,13 +198,29 @@ export default function App() {
               {battery?.volts && (
                 <>
                   <span className="text-slate-400 hidden sm:inline">•</span>
-                  <span className={`hidden sm:inline font-semibold ${
-                    (battery?.percent ?? 0) < 20 ? 'text-red-400' :
-                    (battery?.percent ?? 0) < 40 ? 'text-yellow-400' :
-                    'text-green-400'
-                  }`}>
-                    🔋 {battery.volts.toFixed(1)}V ({Math.round(battery?.percent ?? 0)}%) | {battery.millivolts}mV
-                  </span>
+                  <div className="hidden sm:flex items-center gap-2">
+                    <span className="text-xs text-slate-400">🔋</span>
+                    <div className="w-20 h-3 bg-slate-700 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all ${
+                          (battery?.percent ?? 0) < 20 ? 'bg-red-500' :
+                          (battery?.percent ?? 0) < 40 ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(100, Math.max(0, battery?.percent ?? 0))}%` }}
+                      />
+                    </div>
+                    <span className={`text-xs font-semibold ${
+                      (battery?.percent ?? 0) < 20 ? 'text-red-400' :
+                      (battery?.percent ?? 0) < 40 ? 'text-yellow-400' :
+                      'text-green-400'
+                    }`}>
+                      {Math.round(battery?.percent ?? 0)}%
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      {battery.volts.toFixed(1)}V
+                    </span>
+                  </div>
                 </>
               )}
             </div>

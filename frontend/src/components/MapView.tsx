@@ -35,19 +35,40 @@ export function MapView({ embedded = false }: Props) {
     ctx.putImageData(imageData, 0, 0)
 
     // draw robot using /robot/pose (map frame)
-    const pos = robotPose?.pose?.position
-    const ori = robotPose?.pose?.orientation
+    // Handle both PoseStamped (.pose) and PoseWithCovarianceStamped (.pose.pose)
+    let pos = robotPose?.pose?.pose?.position || robotPose?.pose?.position
+    let ori = robotPose?.pose?.pose?.orientation || robotPose?.pose?.orientation
+    
     if (pos && ori) {
       const mapX = (pos.x - origin.position.x) / resolution
       const mapY = (pos.y - origin.position.y) / resolution
       const canvasY = height - mapY
       // yaw from quaternion
       const yaw = 2 * Math.atan2(ori.z, ori.w)
+      
+      // Draw robot as a larger, more visible arrow
       ctx.save()
       ctx.translate(mapX, canvasY)
       ctx.rotate(yaw)
-      ctx.fillStyle = '#2563eb'
-      ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(-5,5); ctx.lineTo(5,5); ctx.closePath(); ctx.fill()
+      
+      // Draw filled triangle (robot)
+      ctx.fillStyle = '#3b82f6' // bright blue
+      ctx.strokeStyle = '#1e40af' // dark blue border
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(0, -12)  // front point
+      ctx.lineTo(-8, 8)   // back left
+      ctx.lineTo(8, 8)    // back right
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+      
+      // Add a direction indicator (small circle at front)
+      ctx.fillStyle = '#fbbf24' // yellow
+      ctx.beginPath()
+      ctx.arc(0, -12, 3, 0, Math.PI * 2)
+      ctx.fill()
+      
       ctx.restore()
     }
 
