@@ -4,7 +4,7 @@ import { TeleopBlock } from './components/TeleopBlock'
 import { DebugLog } from './components/DebugLog'
 import VideoFeed from './components/VideoFeed'
 import { useRosConnection, useModeAndMaps, useRobotPose, useBattery } from './ros/hooks'
-import { setMode, loadMap, stopSlamAndSave } from './ros/services'
+import { setMode, loadMap, stopSlamAndSave, restartRobotStack } from './ros/services'
 
 export default function App() {
   const { connected } = useRosConnection()
@@ -134,17 +134,39 @@ export default function App() {
   }
 
   const handleSetMode = async (newMode: string) => {
+    console.log(`[MODE SWITCH] Requesting mode change: ${mode} → ${newMode}`)
     setOperating(true)
     setStatusMsg(null)
     try {
-      await setMode(newMode)
+      const result = await setMode(newMode)
+      console.log(`[MODE SWITCH] Result:`, result)
       setStatusMsg(`[SUCCESS] Switched to ${newMode === 'localization' ? 'Nav' : newMode}`)
       refresh()
     } catch (e: any) {
+      console.error(`[MODE SWITCH] Failed:`, e)
       setStatusMsg(`[ERROR] ${e?.message || 'Failed'}`)
     } finally {
       setOperating(false)
       clearStatus()
+    }
+  }
+
+  const handleRestartRobotStack = async () => {
+    const confirmed = window.confirm(
+      'This will restart the entire ROS stack. The robot will be unavailable for ~30 seconds. Continue?'
+    )
+    if (!confirmed) return
+    
+    setOperating(true)
+    setStatusMsg('Restarting robot stack...')
+    try {
+      await restartRobotStack()
+      setStatusMsg('[SUCCESS] Robot stack restarting... Wait 30s and refresh page')
+    } catch (e: any) {
+      setStatusMsg(`[ERROR] Restart failed: ${e?.message || 'Unknown error'}`)
+    } finally {
+      setOperating(false)
+      // Don't clear status - user needs to see the restart message
     }
   }
 
@@ -419,14 +441,20 @@ export default function App() {
                   <div className="text-xs text-slate-400 mb-1">View Saved Map</div>
                   <select
                     value={selectedMap}
-                    onChange={(e) => {
-                      setSelectedMap(e.target.value)
-                      if (e.target.value) {
-                        // Just load the map for viewing, don't start localization
-                        loadMap(e.target.value).catch(err => {
+                    onChange={async (e) => {
+                      const mapName = e.target.value
+                      setSelectedMap(mapName)
+                      if (mapName) {
+                        // Just load the map image for viewing, don't start localization
+                        try {
+                          console.log('[IDLE] Loading map image:', mapName)
+                          await loadMap(mapName)
+                          console.log('[IDLE] Map loaded successfully')
+                        } catch (err: any) {
+                          console.error('[IDLE] Map load failed:', err)
                           setStatusMsg(`[ERROR] Failed to load map: ${err.message}`)
-                          clearStatus()
-                        })
+                          setTimeout(() => setStatusMsg(null), 3000)
+                        }
                       }
                     }}
                     disabled={operating}
@@ -498,32 +526,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Essential Topics */}
-                <div className="mb-3 pb-3 border-t border-slate-700 pt-3">
-                  <div className="text-sm font-semibold text-slate-400 mb-2">Core Topics</div>
-                  <div className="space-y-1 text-sm font-mono text-slate-500">
-                    <div>/scan - LaserScan</div>
-                    <div>/odom - Odometry</div>
-                    <div>/imu/data - IMU</div>
-                    <div>/robot_pose - Pose</div>
-                    <div>/mode_manager/status - Mode</div>
-                    <div>/available_maps - Maps</div>
-                    <div>/ui/cmd_vel - Teleop</div>
-                    <div>/app/cmd_vel - Robot Control</div>
-                  </div>
-                </div>
-
-                {/* Services */}
-                <div className="mb-3 pb-3 border-t border-slate-700 pt-3">
-                  <div className="text-sm font-semibold text-slate-400 mb-2">Services</div>
-                  <div className="space-y-1 text-sm font-mono text-slate-500">
-                    <div>/get_mode</div>
-                    <div>/set_mode</div>
-                    <div>/load_map</div>
-                    <div>/stop_slam_and_save</div>
-                  </div>
-                </div>
-
                 <button
                   onClick={refresh}
                   disabled={operating || loading}
@@ -531,6 +533,18 @@ export default function App() {
                 >
                   {loading ? '⟳ Refreshing...' : '↻ Refresh'}
                 </button>
+
+                {/* Emergency Restart Button */}
+                <button
+                  onClick={handleRestartRobotStack}
+                  disabled={operating}
+                  className="w-full px-4 py-2.5 bg-red-700 hover:bg-red-600 disabled:bg-slate-700 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed disabled:opacity-50 mt-2"
+                >
+                  🔄 Restart Robot Stack
+                </button>
+                <div className="text-xs text-slate-500 text-center mt-1">
+                  Use if modes are stuck or system unresponsive
+                </div>
               </div>
             )}
           </div>

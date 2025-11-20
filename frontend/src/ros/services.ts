@@ -38,6 +38,11 @@ export async function loadMap(mapName: string): Promise<any> {
   return callService(ROS_CONFIG.services.loadMap, 'interfaces/SetString', { data: mapName })
 }
 
+export async function restartRobotStack(): Promise<any> {
+  // Calls the restart service which runs ~/.stop_ros.sh and relaunches core_bringup
+  return callService('/restart_robot_stack', 'std_srvs/Trigger', {})
+}
+
 // POI Management Services
 export interface POI {
   name: string
