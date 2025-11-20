@@ -2,8 +2,44 @@ import ROSLIB from 'roslib';
 import { ROS_CONFIG } from './config';
 
 export const ros = new ROSLIB.Ros({
-  url: ROS_CONFIG.rosbridgeUrl
-});
+  url: ROS_CONFIG.rosbridgeUrl,
+  groovyCompatibility: false
+} as any);
+
+
+// Ensure we close the websocket cleanly when the page unloads. Browsers do not
+// always complete async work on reload, but explicitly closing reduces the
+// chance the server tries to write to an already-closed socket and spams errors.
+if (typeof window !== 'undefined' && window.addEventListener) {
+  let reconnectTimeout: number | undefined;
+  
+  window.addEventListener('beforeunload', () => {
+    try { 
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      ros.close(); 
+    } catch (e) { /* ignore */ }
+  });
+  
+  // Add exponential backoff on disconnect to avoid flapping reconnects
+  let reconnectAttempts = 0;
+  const maxReconnectDelay = 10000;
+  const baseDelay = 1000;
+  
+  ros.on('close', () => {
+    if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    const delay = Math.min(maxReconnectDelay, baseDelay * Math.pow(1.5, reconnectAttempts));
+    reconnectAttempts++;
+    reconnectTimeout = window.setTimeout(() => {
+      try { ros.connect(ROS_CONFIG.rosbridgeUrl); } catch (e) { /* ignore */ }
+    }, delay);
+  });
+  
+  ros.on('connection', () => {
+    reconnectAttempts = 0;
+    if (reconnectTimeout) clearTimeout(reconnectTimeout);
+  });
+}
+
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
 

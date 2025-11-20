@@ -11,6 +11,7 @@ export default function VideoFeed({ embedded = false }: Props) {
   const mjpegUrl = `${ROS_CONFIG.videoBase}/stream?topic=${safeTopic}&type=mjpeg`
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
+  const [streamEnabled, setStreamEnabled] = useState(true)
 
   const body = (
     <>
@@ -19,14 +20,39 @@ export default function VideoFeed({ embedded = false }: Props) {
           {error}
         </div>
       )}
+      
+      {/* Toggle button */}
+      <div className="mb-2 flex items-center gap-2">
+        <button
+          onClick={() => setStreamEnabled(!streamEnabled)}
+          className={`px-3 py-1 text-xs rounded border font-medium transition-colors ${
+            streamEnabled 
+              ? 'bg-green-100 border-green-300 text-green-700 hover:bg-green-200' 
+              : 'bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          {streamEnabled ? '● Live' : '○ Paused'}
+        </button>
+        <span className="text-xs text-slate-500">
+          {streamEnabled ? 'Streaming active' : 'Click to resume'}
+        </span>
+      </div>
+      
       <div className="flex items-center justify-center bg-slate-900 rounded overflow-hidden aspect-video">
-        <img
-          src={mjpegUrl}
-          alt="Camera Feed"
-          className="w-full h-full object-contain"
-          onError={() => setError('Stream unavailable')}
-          onLoad={() => setError(null)}
-        />
+        {streamEnabled ? (
+          <img
+            src={mjpegUrl}
+            alt="Camera Feed"
+            className="w-full h-full object-contain"
+            onError={() => setError('Stream unavailable')}
+            onLoad={() => setError(null)}
+          />
+        ) : (
+          <div className="text-slate-400 text-center p-8">
+            <div className="text-xl mb-2">📹</div>
+            <div className="text-sm">Stream paused</div>
+          </div>
+        )}
       </div>
 
       {/* Expanded modal */}
@@ -43,11 +69,18 @@ export default function VideoFeed({ embedded = false }: Props) {
               </button>
             </div>
             <div className="flex items-center justify-center bg-slate-900 rounded overflow-hidden">
-              <img
-                src={mjpegUrl}
-                alt="Camera Feed"
-                className="max-w-full max-h-[80vh] object-contain"
-              />
+              {streamEnabled ? (
+                <img
+                  src={mjpegUrl}
+                  alt="Camera Feed"
+                  className="max-w-full max-h-[80vh] object-contain"
+                />
+              ) : (
+                <div className="text-slate-400 text-center p-8">
+                  <div className="text-xl mb-2">📹</div>
+                  <div className="text-sm">Stream paused</div>
+                </div>
+              )}
             </div>
           </div>
         </div>
