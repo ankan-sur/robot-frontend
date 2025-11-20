@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { topics } from '../ros/ros'
 import { useRosConnection } from '../ros/hooks'
 import { getMode } from '../ros/services'
+import VirtualJoystick from './VirtualJoystick'
 
 export function TeleopBlock() {
   const { connected } = useRosConnection()
@@ -180,70 +181,76 @@ export function TeleopBlock() {
         </div>
       )}
 
-      {/* Touch-optimized Control Pad */}
-      <div className="grid grid-cols-3 gap-2 select-none max-w-sm mx-auto">
-        <div />
-        <button
-          className="h-16 lg:h-14 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-xl lg:text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
-          disabled={!connected}
-          onMouseDown={guard(() => { held.current.vx = lin; startLoop() })}
-          onMouseUp={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() })}
-          onTouchStart={guard(() => { held.current.vx = lin; startLoop() })}
-          onTouchEnd={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() })}
-          title="Forward"
-        >
-          ▲
-        </button>
-        <div />
+      {/* Virtual Joystick for Mobile, Button Pad for Desktop */}
+      <div className="flex justify-center">
+        {/* Joystick - show on mobile only */}
+        <div className="block lg:hidden">
+          <VirtualJoystick 
+            maxLinear={lin}
+            maxAngular={ang}
+            rateHz={10}
+          />
+        </div>
 
-        <button
-          className="h-16 lg:h-14 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-xl lg:text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
-          disabled={!connected}
-          onMouseDown={guard(() => { held.current.wz = ang; startLoop() })}
-          onMouseUp={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() })}
-          onTouchStart={guard(() => { held.current.wz = ang; startLoop() })}
-          onTouchEnd={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() })}
-          title="Turn left"
-        >
-          ◀
-        </button>
-        <button
-          className="h-16 lg:h-14 rounded-lg bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-xl lg:text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
-          disabled={!connected}
-          onClick={guard(() => { held.current = { vx: 0, wz: 0 }; publishTwist(); stopLoopIfIdle() })}
-          title="Stop"
-        >
-          ■
-        </button>
-        <button
-          className="h-16 lg:h-14 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-xl lg:text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
-          disabled={!connected}
-          onMouseDown={guard(() => { held.current.wz = -ang; startLoop() })}
-          onMouseUp={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() })}
-          onTouchStart={guard(() => { held.current.wz = -ang; startLoop() })}
-          onTouchEnd={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() })}
-          title="Turn right"
-        >
-          ▶
-        </button>
+        {/* Button Pad - show on desktop only */}
+        <div className="hidden lg:block w-full">
+          <div className="grid grid-cols-3 gap-2 select-none max-w-sm mx-auto">
+            <div />
+            <button
+              className="h-14 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors"
+              disabled={!connected}
+              onMouseDown={guard(() => { held.current.vx = lin; startLoop() })}
+              onMouseUp={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() })}
+              title="Forward"
+            >
+              ▲
+            </button>
+            <div />
 
-        <div />
-        <button
-          className="h-16 lg:h-14 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-xl lg:text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors touch-manipulation"
-          disabled={!connected}
-          onMouseDown={guard(() => { held.current.vx = -lin; startLoop() })}
-          onMouseUp={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() })}
-          onTouchStart={guard(() => { held.current.vx = -lin; startLoop() })}
-          onTouchEnd={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() })}
-          title="Reverse"
-        >
-          ▼
-        </button>
-        <div />
-      </div>
+            <button
+              className="h-14 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors"
+              disabled={!connected}
+              onMouseDown={guard(() => { held.current.wz = ang; startLoop() })}
+              onMouseUp={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() })}
+              title="Turn left"
+            >
+              ◀
+            </button>
+            <button
+              className="h-14 rounded-lg bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors"
+              disabled={!connected}
+              onClick={guard(() => { held.current = { vx: 0, wz: 0 }; publishTwist(); stopLoopIfIdle() })}
+              title="Stop"
+            >
+              ■
+            </button>
+            <button
+              className="h-14 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors"
+              disabled={!connected}
+              onMouseDown={guard(() => { held.current.wz = -ang; startLoop() })}
+              onMouseUp={guard(() => { held.current.wz = 0; publishTwist(); stopLoopIfIdle() })}
+              title="Turn right"
+            >
+              ▶
+            </button>
 
-      <div className="text-sm text-slate-500 text-center">
-        Touch buttons or use WASD/Arrow keys • {lin.toFixed(2)} m/s, {ang.toFixed(2)} rad/s
+            <div />
+            <button
+              className="h-14 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-600 text-white text-lg font-bold shadow-lg disabled:cursor-not-allowed transition-colors"
+              disabled={!connected}
+              onMouseDown={guard(() => { held.current.vx = -lin; startLoop() })}
+              onMouseUp={guard(() => { held.current.vx = 0; publishTwist(); stopLoopIfIdle() })}
+              title="Reverse"
+            >
+              ▼
+            </button>
+            <div />
+          </div>
+
+          <div className="text-sm text-slate-500 text-center mt-2">
+            Use WASD/Arrow keys • {lin.toFixed(2)} m/s, {ang.toFixed(2)} rad/s
+          </div>
+        </div>
       </div>
     </div>
   )

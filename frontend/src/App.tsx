@@ -162,7 +162,22 @@ export default function App() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-2 sm:mb-0">
             <div>
-              <h1 className="text-xl font-bold">HFH Robot</h1>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-xl font-bold">HFH Robot</h1>
+                {/* Battery on mobile - compact display next to title */}
+                {battery?.volts && (
+                  <div className="flex sm:hidden items-center gap-1">
+                    <span className="text-xs text-slate-400">BAT:</span>
+                    <span className={`text-xs font-semibold ${
+                      (battery?.percent ?? 0) < 20 ? 'text-red-400' :
+                      (battery?.percent ?? 0) < 40 ? 'text-yellow-400' :
+                      'text-green-400'
+                    }`}>
+                      {Math.round(battery?.percent ?? 0)}%
+                    </span>
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-2 text-sm">
                 <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400' : 'bg-red-400'}`} />
                 <span className={connected ? 'text-green-400' : 'text-red-400'}>
