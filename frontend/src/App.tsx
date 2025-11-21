@@ -4,7 +4,7 @@ import { TeleopBlock } from './components/TeleopBlock'
 import { DebugLog } from './components/DebugLog'
 import VideoFeed from './components/VideoFeed'
 import { useRosConnection, useModeAndMaps, useRobotPose, useBattery } from './ros/hooks'
-import { setMode, loadMap, stopSlamAndSave, restartRobotStack } from './ros/services'
+import { setMode, loadMap, stopSlamAndSave } from './ros/services'
 
 export default function App() {
   const { connected } = useRosConnection()
@@ -99,16 +99,10 @@ export default function App() {
     try {
       const result = await stopSlamAndSave(mapName)
       console.log('Save result:', result)
-      setStatusMsg(`[SUCCESS] Map "${mapName}" saved`)
+      setStatusMsg(`[SUCCESS] Map "${mapName}" saved. Switch to idle or localization mode.`)
       
-      // After saving, switch to idle mode
-      try {
-        await setMode('idle')
-      } catch (e: any) {
-        console.warn('Failed to switch to idle after save:', e)
-      }
-      
-      refresh()
+      // Refresh to get updated mode and maps list
+      await refresh()
     } catch (e: any) {
       console.error('Save failed:', e)
       setStatusMsg(`[ERROR] ${e?.message || 'Failed to save map'}`)
@@ -161,25 +155,6 @@ export default function App() {
     } finally {
       setOperating(false)
       clearStatus()
-    }
-  }
-
-  const handleRestartRobotStack = async () => {
-    const confirmed = window.confirm(
-      'This will restart the entire ROS stack. The robot will be unavailable for ~30 seconds. Continue?'
-    )
-    if (!confirmed) return
-    
-    setOperating(true)
-    setStatusMsg('Restarting robot stack...')
-    try {
-      await restartRobotStack()
-      setStatusMsg('[SUCCESS] Robot stack restarting... Wait 30s and refresh page')
-    } catch (e: any) {
-      setStatusMsg(`[ERROR] Restart failed: ${e?.message || 'Unknown error'}`)
-    } finally {
-      setOperating(false)
-      // Don't clear status - user needs to see the restart message
     }
   }
 
@@ -497,7 +472,7 @@ export default function App() {
           <div className="space-y-4 order-2 lg:order-2">
             {/* Teleop Control */}
             <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
-              <TeleopBlock />
+              <TeleopBlock disableKeyboard={showSaveDialog} />
             </div>
 
             {/* Settings Panel (collapsible) */}
@@ -546,18 +521,6 @@ export default function App() {
                 >
                   {loading ? '⟳ Refreshing...' : '↻ Refresh'}
                 </button>
-
-                {/* Emergency Restart Button */}
-                <button
-                  onClick={handleRestartRobotStack}
-                  disabled={operating}
-                  className="w-full px-4 py-2.5 bg-red-700 hover:bg-red-600 disabled:bg-slate-700 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed disabled:opacity-50 mt-2"
-                >
-                  🔄 Restart Robot Stack
-                </button>
-                <div className="text-xs text-slate-500 text-center mt-1">
-                  Use if modes are stuck or system unresponsive
-                </div>
               </div>
             )}
           </div>

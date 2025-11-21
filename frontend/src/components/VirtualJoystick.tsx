@@ -13,7 +13,6 @@ export default function VirtualJoystick({ maxLinear, maxAngular, rateHz = 20, de
   const containerRef = useRef<HTMLDivElement>(null)
   const knobRef = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState(false)
-  const activeRef = useRef(false) // Use ref for synchronous access
   const centerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const vecRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 })
   const intervalRef = useRef<number | null>(null)
@@ -34,7 +33,7 @@ export default function VirtualJoystick({ maxLinear, maxAngular, rateHz = 20, de
         const nx = Math.max(-1, Math.min(1, dx / radiusPx)) // right +
         const ny = Math.max(-1, Math.min(1, dy / radiusPx)) // down +
         const vx = -ny * maxLinear // up = forward
-        const wz = nx * maxAngular // right = turn right (negative is left)
+        const wz = -nx * maxAngular // right = turn right (inverted: right is negative angular)
         send(vx, wz, maxLinear, maxAngular)
       }, period)
     }
@@ -65,98 +64,51 @@ export default function VirtualJoystick({ maxLinear, maxAngular, rateHz = 20, de
     vecRef.current = { dx: 0, dy: 0 }
   }
 
-  const handleMove = (clientX: number, clientY: number) => {
-    if (!activeRef.current) return
-    const { x, y } = centerRef.current
-    const dx = clientX - x
-    const dy = clientY - y
-    updateKnob(dx, dy)
-  }
-
-  const handleStart = (clientX: number, clientY: number) => {
+  const onPointerDown = (e: React.PointerEvent) => {
     if (!containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
     centerRef.current = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-    activeRef.current = true
     setActive(true)
-    handleMove(clientX, clientY)
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    onPointerMove(e)
   }
 
-  const handleEnd = () => {
-    activeRef.current = false
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!active) return
+    const { x, y } = centerRef.current
+    const dx = e.clientX - x
+    const dy = e.clientY - y
+    updateKnob(dx, dy)
+  }
+
+  const onPointerUp = (e: React.PointerEvent) => {
     setActive(false)
     resetKnob()
+    // final zero
     send(0, 0, maxLinear, maxAngular)
-  }
-
-  // Touch event handlers
-  const onTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault()
-    if (e.touches.length > 0) {
-      const touch = e.touches[0]
-      handleStart(touch.clientX, touch.clientY)
-    }
-  }
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault()
-    if (e.touches.length > 0) {
-      const touch = e.touches[0]
-      handleMove(touch.clientX, touch.clientY)
-    }
-  }
-
-  const onTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault()
-    handleEnd()
-  }
-
-  // Mouse event handlers (for desktop)
-  const onMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault()
-    handleStart(e.clientX, e.clientY)
-  }
-
-  const onMouseMove = (e: React.MouseEvent) => {
-    handleMove(e.clientX, e.clientY)
-  }
-
-  const onMouseUp = (e: React.MouseEvent) => {
-    e.preventDefault()
-    handleEnd()
-  }
-
-  const onMouseLeave = () => {
-    if (activeRef.current) {
-      handleEnd()
-    }
   }
 
   return (
     <div className="flex flex-col items-center gap-2">
       <div
         ref={containerRef}
-        className="relative w-56 h-56 rounded-full bg-slate-700 border-2 border-slate-600 touch-none select-none"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={onTouchEnd}
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
-        onMouseLeave={onMouseLeave}
+        className="relative w-56 h-56 rounded-full bg-slate-100 border border-slate-300 touch-none select-none"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
       >
-        <div className="absolute inset-2 rounded-full border border-slate-600" />
+        <div className="absolute inset-1 rounded-full border border-slate-200" />
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-2 h-2 bg-slate-500 rounded-full" />
+          <div className="w-1 h-1 bg-slate-300 rounded-full" />
         </div>
         <div
           ref={knobRef}
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-blue-600 border-2 border-blue-500 shadow-lg pointer-events-none"
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-blue-100 border-2 border-blue-300 shadow-md"
           style={{ transition: active ? 'none' as any : 'transform 120ms ease-out' }}
         />
       </div>
-      <div className="text-sm text-slate-400">Drag: up/down = linear, left/right = turn</div>
+      <div className="text-[11px] text-slate-500">Drag: up/down = linear, left/right = turn</div>
     </div>
   )
 }

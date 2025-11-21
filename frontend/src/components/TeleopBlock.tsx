@@ -4,7 +4,11 @@ import { useRosConnection } from '../ros/hooks'
 import { getMode } from '../ros/services'
 import VirtualJoystick from './VirtualJoystick'
 
-export function TeleopBlock() {
+type Props = {
+  disableKeyboard?: boolean
+}
+
+export function TeleopBlock({ disableKeyboard = false }: Props) {
   const { connected } = useRosConnection()
   const [currentMode, setCurrentMode] = useState<string | null>(null)
   const [linSet, setLinSet] = useState(0.3)
@@ -106,6 +110,7 @@ export function TeleopBlock() {
       }
     }
     const down = (e: KeyboardEvent) => {
+      if (disableKeyboard) return // Don't capture keys when dialog is open
       const k = e.key.toLowerCase()
       if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) {
         e.preventDefault()
@@ -114,6 +119,7 @@ export function TeleopBlock() {
       }
     }
     const up = (e: KeyboardEvent) => {
+      if (disableKeyboard) return // Don't capture keys when dialog is open
       const k = e.key.toLowerCase()
       if (keysRef.current.delete(k)) {
         recompute()
@@ -126,7 +132,7 @@ export function TeleopBlock() {
       window.removeEventListener('keyup', up)
       keysRef.current.clear()
     }
-  }, [lin, ang, publishTwist, startLoop, stopLoopIfIdle])
+  }, [lin, ang, publishTwist, startLoop, stopLoopIfIdle, disableKeyboard])
 
   return (
     <div className="space-y-3">
