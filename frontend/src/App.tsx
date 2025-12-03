@@ -5,12 +5,16 @@ import { DebugLog } from './components/DebugLog'
 import VideoFeed from './components/VideoFeed'
 import { useRosConnection, useModeAndMaps, useRobotPose, useBattery } from './ros/hooks'
 import { setMode, loadMap, stopSlamAndSave } from './ros/services'
+import { isCloudModeEnabled } from './ros/ros'
+import { useCloudStatus } from './ros/cloudHooks'
 
 export default function App() {
   const { connected } = useRosConnection()
   const { mode, activeMap, maps, loading, refresh } = useModeAndMaps()
   const robotPose = useRobotPose()
   const battery = useBattery()
+  const cloudStatus = useCloudStatus()
+  const isCloudMode = isCloudModeEnabled()
   // Disable POI system for now - not ready
   // const pois = usePoisForMap(activeMap || undefined)
   
@@ -19,10 +23,7 @@ export default function App() {
   const [selectedMap, setSelectedMap] = useState<string>('')
   const [mapLoaded, setMapLoaded] = useState(false)
   const [activeTab, setActiveTab] = useState<'map' | 'camera'>('map')
-  const [showSettings, setShowSettings] = useState(false)
   const [showDebugLog, setShowDebugLog] = useState(true)
-  const [robotIp, setRobotIp] = useState<string>('')
-  const [wifiSsid, setWifiSsid] = useState<string>('')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveMapName, setSaveMapName] = useState<string>('')
   
@@ -44,26 +45,6 @@ export default function App() {
       setActiveTab('map')
     }
   }, [mode])
-
-  // Fetch network info from robot
-  useEffect(() => {
-    const fetchNetworkInfo = async () => {
-      try {
-        // Try to get IP from window.location or rosbridge connection
-        const hostname = window.location.hostname
-        if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-          setRobotIp(hostname)
-        }
-        
-        // TODO: Add ROS service call to get actual WiFi SSID from robot
-        // For now, we'll leave it as a placeholder
-        setWifiSsid('N/A')
-      } catch (e) {
-        console.error('Failed to fetch network info:', e)
-      }
-    }
-    fetchNetworkInfo()
-  }, [connected])
 
   const handleStartMapping = async () => {
     setOperating(true)
@@ -204,12 +185,6 @@ export default function App() {
                 }`}>
                   {mode === 'localization' ? 'NAV' : mode?.toUpperCase() || 'IDLE'}
                 </span>
-                {robotIp && (
-                  <>
-                    <span className="text-slate-400 hidden sm:inline">•</span>
-                    <span className="text-slate-400 hidden sm:inline">{robotIp}</span>
-                  </>
-                )}
                 {battery?.volts && (
                   <>
                     <span className="text-slate-400 hidden sm:inline">•</span>
@@ -249,14 +224,6 @@ export default function App() {
               >
                 DEBUG Logs
               </button>
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                className={`px-3 py-1.5 rounded text-sm font-semibold transition-colors ${
-                  showSettings ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-                }`}
-              >
-                SETTINGS
-              </button>
             </div>
           </div>
           {/* Mobile-only button row */}
@@ -268,14 +235,6 @@ export default function App() {
               }`}
             >
               DEBUG Logs
-            </button>
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className={`flex-1 px-3 py-1.5 rounded text-sm font-semibold transition-colors ${
-                showSettings ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-              }`}
-            >
-              SETTINGS
             </button>
           </div>
         </div>
@@ -478,54 +437,82 @@ export default function App() {
               <TeleopBlock disableKeyboard={showSaveDialog} />
             </div>
 
-            {/* Settings Panel (collapsible) */}
-            {showSettings && (
-              <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
-                <div className="text-base font-semibold mb-3 text-slate-300">System Status</div>
-                
-                {/* Network Info */}
-                <div className="space-y-2 text-sm font-mono mb-3 pb-3 border-b border-slate-700">
+            {/* System Status Panel (always visible) */}
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+              <div className="text-base font-semibold mb-3 text-slate-300">System Status</div>
+              
+              {/* Connection Status */}
+              <div className="space-y-2 text-sm font-mono mb-3 pb-3 border-b border-slate-700">
+                {isCloudMode && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Robot IP:</span>
-                    <span className="text-white">{robotIp || 'Unknown'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">WiFi:</span>
-                    <span className="text-white">{wifiSsid || 'N/A'}</span>
-                  </div>
-                </div>
-
-                {/* Quick Status */}
-                <div className="space-y-2 text-sm font-mono mb-3 pb-3 border-b border-slate-700">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">ROS Connection:</span>
-                    <span className={connected ? 'text-green-400' : 'text-red-400'}>
-                      {connected ? '● Connected' : '○ Disconnected'}
+                    <span className="text-slate-400">Backend:</span>
+                    <span className={cloudStatus.backendConnected ? 'text-green-400' : 'text-red-400'}>
+                      {cloudStatus.backendConnected ? '● Connected' : '○ Disconnected'}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Current Mode:</span>
-                    <span className="text-white">{mode?.toUpperCase() || 'UNKNOWN'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Active Map:</span>
-                    <span className="text-white">{activeMap || 'None'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Maps Available:</span>
-                    <span className="text-white">{maps.length}</span>
-                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-slate-400">{isCloudMode ? 'Robot:' : 'ROS:'}</span>
+                  <span className={connected ? 'text-green-400' : 'text-red-400'}>
+                    {connected ? '● Online' : '○ Offline'}
+                  </span>
                 </div>
-
-                <button
-                  onClick={refresh}
-                  disabled={operating || loading}
-                  className="w-full px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {loading ? '⟳ Refreshing...' : '↻ Refresh'}
-                </button>
+                {isCloudMode && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">UI Clients:</span>
+                    <span className="text-white">{cloudStatus.uiClientCount}</span>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Robot Status */}
+              <div className="space-y-2 text-sm font-mono mb-3 pb-3 border-b border-slate-700">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Mode:</span>
+                  <span className={`font-semibold ${
+                    mode === 'slam' ? 'text-amber-400' :
+                    mode === 'localization' ? 'text-blue-400' :
+                    'text-slate-300'
+                  }`}>{mode?.toUpperCase() || 'IDLE'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Active Map:</span>
+                  <span className="text-white">{activeMap || 'None'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Maps:</span>
+                  <span className="text-white">{maps.length} available</span>
+                </div>
+              </div>
+
+              {/* Control & Command Status (cloud mode only) */}
+              {isCloudMode && (
+                <div className="space-y-2 text-sm font-mono mb-3 pb-3 border-b border-slate-700">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Control:</span>
+                    <span className={cloudStatus.hasControl ? 'text-green-400' : 'text-slate-400'}>
+                      {cloudStatus.controlHolder 
+                        ? (cloudStatus.hasControl ? '● You have control' : `○ ${cloudStatus.controlHolder}`)
+                        : '○ Available'}
+                    </span>
+                  </div>
+                  {cloudStatus.lastCommand && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Last Cmd:</span>
+                      <span className="text-amber-400">{cloudStatus.lastCommand}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={refresh}
+                disabled={operating || loading}
+                className="w-full px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold text-base transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? '⟳ Refreshing...' : '↻ Refresh'}
+              </button>
+            </div>
           </div>
         </div>
       </main>

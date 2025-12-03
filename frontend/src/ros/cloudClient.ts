@@ -167,6 +167,10 @@ export class CloudWebSocketClient {
   private robotState: RobotState | null = null;
   private controlHolder: string | null = null;
   private serverConfig: WelcomeMessage['config'] | null = null;
+  
+  // Public state for hooks (use underscore prefix for internal tracking)
+  public _uiClientCount: number = 0;
+  public _lastCommand: string | null = null;
 
   constructor(
     url: string, 
@@ -236,6 +240,10 @@ export class CloudWebSocketClient {
     switch (message.type) {
       case 'welcome':
         this.serverConfig = message.config;
+        // Extract UI client count from welcome
+        if ((message as any).uiClientCount !== undefined) {
+          this._uiClientCount = (message as any).uiClientCount;
+        }
         console.log('[Cloud] Received welcome, config:', message.config);
         this.emit('welcome', message);
         break;
@@ -243,6 +251,10 @@ export class CloudWebSocketClient {
       case 'state':
         this.robotState = message.state;
         this.controlHolder = message.state.controlledBy ?? null;
+        // Extract UI client count from state
+        if ((message as any).uiClientCount !== undefined) {
+          this._uiClientCount = (message as any).uiClientCount;
+        }
         this.emit('state', message);
         // Also emit legacy telemetry event for compatibility
         this.emit('telemetry', this.convertToLegacyTelemetry(message.state));
@@ -253,6 +265,7 @@ export class CloudWebSocketClient {
         break;
       
       case 'command_result':
+        this._lastCommand = message.command;
         this.emit('command_result', message);
         break;
       
@@ -277,6 +290,15 @@ export class CloudWebSocketClient {
   private handleEvent(message: EventMessage) {
     const { event, robotId, data } = message;
     console.log(`[Cloud] Event: ${event}`, data);
+    
+    // Handle UI count updates (special event, not robot-specific)
+    if ((message as any).event === 'ui_count') {
+      if ((message as any).uiClientCount !== undefined) {
+        this._uiClientCount = (message as any).uiClientCount;
+      }
+      this.emit('ui_count', message);
+      return;
+    }
     
     switch (event) {
       case 'robot_connected':
