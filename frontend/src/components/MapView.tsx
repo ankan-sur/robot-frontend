@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 import { useMap, useRobotPose, usePointsOfInterest } from '../ros/hooks'
 
 type Props = {
@@ -9,19 +9,17 @@ type Props = {
 export function MapView({ embedded = false, mode = null }: Props) {
   const map = useMap()
   const robotPose = useRobotPose() // subscribe to /robot/pose (map frame)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const mapCanvasRef = useRef<HTMLCanvasElement>(null)
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
   const pois = usePointsOfInterest()
+  const lastMapDataRef = useRef<any>(null)
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas || !map) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    const { width, height, resolution, origin } = map.info
-    const data = map.data
-    canvas.width = width
-    canvas.height = height
-    const imageData = ctx.createImageData(width, height)
+  // Memoize map rendering - only redraw when map data changes
+  const mapImageData = useMemo(() => {
+    if (!map) return null
+    const { width, height } = map.info
+    const { data } = map
+    const imageData = new ImageData(width, height)
     for (let i = 0; i < data.length; i++) {
       const v = data[i]
       const idx = i * 4
@@ -33,7 +31,33 @@ export function MapView({ embedded = false, mode = null }: Props) {
         imageData.data[idx] = 0; imageData.data[idx+1]=0; imageData.data[idx+2]=0; imageData.data[idx+3]=255
       }
     }
-    ctx.putImageData(imageData, 0, 0)
+    lastMapDataRef.current = map
+    return imageData
+  }, [map])
+
+  // Draw base map to map canvas (only when map changes)
+  useEffect(() => {
+    const canvas = mapCanvasRef.current
+    if (!canvas || !mapImageData || !map) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    canvas.width = map.info.width
+    canvas.height = map.info.height
+    ctx.putImageData(mapImageData, 0, 0)
+  }, [mapImageData, map])
+
+  // Draw dynamic overlay (robot, POIs) to overlay canvas (updates frequently)
+  useEffect(() => {
+    const canvas = overlayCanvasRef.current
+    if (!canvas || !map) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const { width, height, resolution, origin } = map.info
+    canvas.width = width
+    canvas.height = height
+    
+    // Clear overlay
+    ctx.clearRect(0, 0, width, height)
 
     // Only draw robot marker in localization/nav mode (not in SLAM)
     if (mode === 'localization' || mode === 'idle') {
@@ -119,11 +143,18 @@ export function MapView({ embedded = false, mode = null }: Props) {
             </div>
           </div>
         )}
-        <canvas 
-          ref={canvasRef} 
-          className="w-full h-full object-contain"
-          style={{ imageRendering: 'pixelated' }}
-        />
+        <div className="relative w-full h-full">
+          <canvas 
+            ref={mapCanvasRef} 
+            className="absolute inset-0 w-full h-full object-contain"
+            style={{ imageRendering: 'pixelated' }}
+          />
+          <canvas 
+            ref={overlayCanvasRef} 
+            className="absolute inset-0 w-full h-full object-contain"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </div>
       </div>
     </div>
   )

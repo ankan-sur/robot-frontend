@@ -20,7 +20,7 @@ export default function App() {
   const [mapLoaded, setMapLoaded] = useState(false)
   const [activeTab, setActiveTab] = useState<'map' | 'camera'>('map')
   const [showSettings, setShowSettings] = useState(false)
-  const [showDebugLog, setShowDebugLog] = useState(false)
+  const [showDebugLog, setShowDebugLog] = useState(true)
   const [robotIp, setRobotIp] = useState<string>('')
   const [wifiSsid, setWifiSsid] = useState<string>('')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
@@ -99,7 +99,10 @@ export default function App() {
     try {
       const result = await stopSlamAndSave(mapName)
       console.log('Save result:', result)
-      setStatusMsg(`[SUCCESS] Map "${mapName}" saved. Switch to idle or localization mode.`)
+      
+      // Display map save directory prominently in success message
+      const mapsDir = '~/ros2_ws/src/robothome/src/slam/maps'
+      setStatusMsg(`[SUCCESS] Map "${mapName}" saved to: ${mapsDir}`)
       
       // Refresh to get updated mode and maps list
       await refresh()

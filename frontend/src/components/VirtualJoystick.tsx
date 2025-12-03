@@ -33,7 +33,7 @@ export default function VirtualJoystick({ maxLinear, maxAngular, rateHz = 20, de
         const nx = Math.max(-1, Math.min(1, dx / radiusPx)) // right +
         const ny = Math.max(-1, Math.min(1, dy / radiusPx)) // down +
         const vx = -ny * maxLinear // up = forward
-        const wz = -nx * maxAngular // right = turn right (inverted: right is negative angular)
+        const wz = nx * maxAngular // right = turn right (positive angular)
         send(vx, wz, maxLinear, maxAngular)
       }, period)
     }
