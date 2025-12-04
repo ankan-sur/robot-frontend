@@ -88,14 +88,27 @@ export default function App() {
     try {
       const result = await stopSlamAndSave(mapName)
       console.log('Save result:', result)
-      setStatusMsg(`✓ Map "${mapName}" saved successfully!`)
+      setStatusMsg(`✓ Map "${mapName}" saved! Loading for preview...`)
       await refresh()
+      // After saving, automatically load the map for viewing
+      setTimeout(async () => {
+        try {
+          await loadMap(mapName)
+          setStatusMsg(`✓ Map "${mapName}" saved and loaded!`)
+          await refresh()
+        } catch (loadErr) {
+          console.error('Auto-load after save failed:', loadErr)
+          // Still show success for the save
+          setStatusMsg(`✓ Map "${mapName}" saved successfully!`)
+        }
+        clearStatus()
+      }, 1000)
     } catch (e: any) {
       console.error('Save failed:', e)
       setStatusMsg(`✗ Error: ${e?.message || 'Failed to save map'}`)
+      clearStatus()
     } finally {
       setOperating(false)
-      clearStatus()
     }
   }
 
@@ -187,35 +200,11 @@ export default function App() {
       <main className="max-w-7xl mx-auto p-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           
-          {/* Left Column: Map/Camera + Controls + Debug Log */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Map/Camera Tabs */}
-            <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-              <div className="flex gap-2 px-4 py-2 border-b border-slate-700">
-                <button
-                  onClick={() => setActiveTab('map')}
-                  className={`px-4 py-2 rounded font-medium transition-colors ${
-                    activeTab === 'map' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-                  }`}
-                >
-                  Map
-                </button>
-                <button
-                  onClick={() => setActiveTab('camera')}
-                  className={`px-4 py-2 rounded font-medium transition-colors ${
-                    activeTab === 'camera' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-                  }`}
-                >
-                  Camera
-                </button>
-              </div>
-              <div className="p-4">
-                {activeTab === 'map' ? (
-                  <MapView embedded mode={mode} />
-                ) : (
-                  <VideoFeed embedded />
-                )}
-              </div>
+          {/* Left Column: Teleop + Controls + Maps List */}
+          <div className="space-y-4 order-2 lg:order-1">
+            {/* Teleop Control */}
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+              <TeleopBlock disableKeyboard={showSaveDialog} />
             </div>
 
             {/* SLAM Control Panel */}
@@ -262,13 +251,6 @@ export default function App() {
                   </div>
                 </div>
               )}
-
-              {/* Current map info */}
-              {activeMap && (
-                <div className="mt-4 pt-4 border-t border-slate-700 text-sm text-slate-400 text-center">
-                  Active Map: <span className="text-blue-400 font-mono">{activeMap}</span>
-                </div>
-              )}
             </div>
 
             {/* Saved Maps List */}
@@ -286,7 +268,7 @@ export default function App() {
               {maps.length === 0 ? (
                 <div className="text-slate-500 text-center py-4">No maps saved yet</div>
               ) : (
-                <div className="space-y-2 max-h-40 overflow-y-auto">
+                <div className="space-y-2 max-h-48 overflow-y-auto">
                   {maps.map((mapName) => (
                     <div
                       key={mapName}
@@ -308,16 +290,6 @@ export default function App() {
                   ))}
                 </div>
               )}
-            </div>
-
-            {/* Debug Log - Always visible */}
-            <DebugLog />
-          </div>
-
-          {/* Right Column: Teleop + Telemetry */}
-          <div className="space-y-4">
-            <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
-              <TeleopBlock disableKeyboard={showSaveDialog} />
             </div>
 
             {/* Telemetry Panel */}
@@ -381,14 +353,47 @@ export default function App() {
                   </div>
                 )}
               </div>
-              <button
-                onClick={refresh}
-                disabled={loading}
-                className="w-full mt-3 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm font-medium transition-colors"
-              >
-                {loading ? 'Refreshing...' : 'Refresh Status'}
-              </button>
             </div>
+          </div>
+
+          {/* Right Column: Map/Camera + Debug Log */}
+          <div className="lg:col-span-2 space-y-4 order-1 lg:order-2">
+            {/* Map/Camera Tabs */}
+            <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+              <div className="flex gap-2 px-4 py-2 border-b border-slate-700">
+                <button
+                  onClick={() => setActiveTab('map')}
+                  className={`px-4 py-2 rounded font-medium transition-colors ${
+                    activeTab === 'map' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
+                  }`}
+                >
+                  Map
+                </button>
+                <button
+                  onClick={() => setActiveTab('camera')}
+                  className={`px-4 py-2 rounded font-medium transition-colors ${
+                    activeTab === 'camera' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
+                  }`}
+                >
+                  Camera
+                </button>
+                {activeMap && (
+                  <span className="ml-auto text-sm text-slate-400 self-center">
+                    Viewing: <span className="text-blue-400 font-mono">{activeMap}</span>
+                  </span>
+                )}
+              </div>
+              <div className="p-4">
+                {activeTab === 'map' ? (
+                  <MapView embedded mode={mode} />
+                ) : (
+                  <VideoFeed embedded />
+                )}
+              </div>
+            </div>
+
+            {/* Debug Log - Always visible */}
+            <DebugLog />
           </div>
         </div>
       </main>
