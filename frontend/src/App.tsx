@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react'
 import { MapView } from './components/MapView'
 import { TeleopBlock } from './components/TeleopBlock'
+import { DebugLog } from './components/DebugLog'
 import VideoFeed from './components/VideoFeed'
-import { useRosConnection, useModeAndMaps, useBattery } from './ros/hooks'
-import { setMode, stopSlamAndSave } from './ros/services'
+import { useRosConnection, useModeAndMaps, useBattery, useRobotPose } from './ros/hooks'
+import { setMode, stopSlamAndSave, loadMap } from './ros/services'
 import { isCloudModeEnabled } from './ros/ros'
 import { useCloudStatus } from './ros/cloudHooks'
 
 export default function App() {
   const { connected } = useRosConnection()
-  const { mode, activeMap, loading, refresh } = useModeAndMaps()
+  const { mode, activeMap, maps, loading, refresh } = useModeAndMaps()
   const battery = useBattery()
+  const robotPose = useRobotPose()
   const cloudStatus = useCloudStatus()
   const isCloudMode = isCloudModeEnabled()
   
@@ -19,8 +21,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'map' | 'camera'>('map')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveMapName, setSaveMapName] = useState<string>('')
+  const [selectedViewMap, setSelectedViewMap] = useState<string>('')
   
   const clearStatus = () => setTimeout(() => setStatusMsg(null), 5000)
+  
+  // Get robot position for telemetry display
+  const pose = robotPose?.pose?.pose || robotPose?.pose
+  const posX = pose?.position?.x ?? 0
+  const posY = pose?.position?.y ?? 0
+  const q = pose?.orientation
+  const yaw = q ? Math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z)) : 0
 
   // Auto-show map when in SLAM mode
   useEffect(() => {
@@ -94,6 +104,23 @@ export default function App() {
     setSaveMapName('')
   }
 
+  const handleLoadMapForView = async (mapName: string) => {
+    if (!mapName) return
+    setSelectedViewMap(mapName)
+    setOperating(true)
+    setStatusMsg(`Loading map "${mapName}"...`)
+    try {
+      await loadMap(mapName)
+      setStatusMsg(`✓ Loaded map "${mapName}" for viewing`)
+      refresh()
+    } catch (e: any) {
+      setStatusMsg(`✗ Error: ${e?.message || 'Failed to load map'}`)
+    } finally {
+      setOperating(false)
+      clearStatus()
+    }
+  }
+
   const isSlam = mode === 'slam'
   const isIdle = mode === 'idle' || !mode
 
@@ -101,7 +128,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-900 text-white">
       {/* Header */}
       <div className="bg-slate-800 border-b border-slate-700 px-4 py-3">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold">HFH Robot - SLAM Mapping</h1>
@@ -116,15 +143,15 @@ export default function App() {
                 <span className={`font-semibold ${isSlam ? 'text-amber-400' : 'text-slate-400'}`}>
                   {isSlam ? '● MAPPING' : 'IDLE'}
                 </span>
-                {battery?.percent !== undefined && (
+                {battery?.percent !== undefined && battery.percent !== null && (
                   <>
                     <span className="text-slate-500">•</span>
                     <span className={`${
-                      battery.percent < 20 ? 'text-red-400' :
-                      battery.percent < 40 ? 'text-yellow-400' :
+                      (battery.percent ?? 0) < 20 ? 'text-red-400' :
+                      (battery.percent ?? 0) < 40 ? 'text-yellow-400' :
                       'text-green-400'
                     }`}>
-                      🔋 {Math.round(battery.percent)}%
+                      🔋 {Math.round(battery.percent ?? 0)}%
                     </span>
                   </>
                 )}
@@ -146,7 +173,7 @@ export default function App() {
 
       {/* Status Message */}
       {statusMsg && (
-        <div className="max-w-5xl mx-auto px-4 mt-3">
+        <div className="max-w-7xl mx-auto px-4 mt-3">
           <div className={`p-3 rounded-lg text-center font-semibold ${
             statusMsg.startsWith('✓') ? 'bg-green-900/50 text-green-300 border border-green-700' : 
             statusMsg.startsWith('✗') ? 'bg-red-900/50 text-red-300 border border-red-700' :
@@ -157,10 +184,10 @@ export default function App() {
         </div>
       )}
 
-      <main className="max-w-5xl mx-auto p-4">
+      <main className="max-w-7xl mx-auto p-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           
-          {/* Left: Map/Camera View */}
+          {/* Left Column: Map/Camera + Controls + Debug Log */}
           <div className="lg:col-span-2 space-y-4">
             {/* Map/Camera Tabs */}
             <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
@@ -243,22 +270,64 @@ export default function App() {
                 </div>
               )}
             </div>
+
+            {/* Saved Maps List */}
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-slate-200">Saved Maps ({maps.length})</h2>
+                <button
+                  onClick={refresh}
+                  disabled={loading}
+                  className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded transition-colors"
+                >
+                  {loading ? '...' : '↻'}
+                </button>
+              </div>
+              {maps.length === 0 ? (
+                <div className="text-slate-500 text-center py-4">No maps saved yet</div>
+              ) : (
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {maps.map((mapName) => (
+                    <div
+                      key={mapName}
+                      className={`flex items-center justify-between p-2 rounded ${
+                        activeMap === mapName ? 'bg-blue-900/50 border border-blue-600' : 'bg-slate-700/50'
+                      }`}
+                    >
+                      <span className="font-mono text-sm">{mapName}</span>
+                      {!isSlam && (
+                        <button
+                          onClick={() => handleLoadMapForView(mapName)}
+                          disabled={operating || activeMap === mapName}
+                          className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:text-slate-400 rounded transition-colors"
+                        >
+                          {activeMap === mapName ? 'Loaded' : 'View'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Debug Log - Always visible */}
+            <DebugLog />
           </div>
 
-          {/* Right: Teleop Controls */}
+          {/* Right Column: Teleop + Telemetry */}
           <div className="space-y-4">
             <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
               <TeleopBlock disableKeyboard={showSaveDialog} />
             </div>
 
-            {/* Quick Status */}
+            {/* Telemetry Panel */}
             <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
-              <div className="text-sm font-semibold mb-2 text-slate-300">Status</div>
-              <div className="space-y-1 text-sm font-mono">
+              <div className="text-sm font-semibold mb-3 text-slate-300">Telemetry</div>
+              <div className="space-y-2 text-sm font-mono">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Mode:</span>
                   <span className={isSlam ? 'text-amber-400' : 'text-slate-300'}>
-                    {isSlam ? 'SLAM' : 'IDLE'}
+                    {isSlam ? 'SLAM' : (mode || 'IDLE').toUpperCase()}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -267,13 +336,57 @@ export default function App() {
                     {connected ? 'Connected' : 'Offline'}
                   </span>
                 </div>
+                {isCloudMode && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Backend:</span>
+                      <span className={cloudStatus.backendConnected ? 'text-green-400' : 'text-red-400'}>
+                        {cloudStatus.backendConnected ? 'Connected' : 'Offline'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">UI Clients:</span>
+                      <span className="text-white">{cloudStatus.uiClientCount}</span>
+                    </div>
+                  </>
+                )}
+                <div className="border-t border-slate-700 pt-2 mt-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Position:</span>
+                    <span className="text-white">
+                      ({posX.toFixed(2)}, {posY.toFixed(2)})
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Heading:</span>
+                    <span className="text-white">{(yaw * 180 / Math.PI).toFixed(1)}°</span>
+                  </div>
+                  {battery?.percent !== undefined && battery.percent !== null && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Battery:</span>
+                      <span className={`${
+                        (battery.percent ?? 0) < 20 ? 'text-red-400' :
+                        (battery.percent ?? 0) < 40 ? 'text-yellow-400' :
+                        'text-green-400'
+                      }`}>
+                        {Math.round(battery.percent ?? 0)}% {battery.volts ? `(${battery.volts.toFixed(1)}V)` : ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {activeMap && (
+                  <div className="flex justify-between border-t border-slate-700 pt-2">
+                    <span className="text-slate-400">Active Map:</span>
+                    <span className="text-blue-400">{activeMap}</span>
+                  </div>
+                )}
               </div>
               <button
                 onClick={refresh}
                 disabled={loading}
                 className="w-full mt-3 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm font-medium transition-colors"
               >
-                {loading ? 'Refreshing...' : 'Refresh'}
+                {loading ? 'Refreshing...' : 'Refresh Status'}
               </button>
             </div>
           </div>
