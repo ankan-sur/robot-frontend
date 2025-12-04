@@ -37,7 +37,7 @@ export default function App() {
       setStatusMsg('✓ SLAM mode started - Drive around to map!')
       refresh()
     } catch (e: any) {
-      setStatusMsg(\`✗ Error: \${e?.message || 'Failed to start SLAM'}\`)
+      setStatusMsg(`✗ Error: ${e?.message || 'Failed to start SLAM'}`)
     } finally {
       setOperating(false)
       clearStatus()
@@ -52,7 +52,7 @@ export default function App() {
       setStatusMsg('✓ Mapping cancelled (map not saved)')
       refresh()
     } catch (e: any) {
-      setStatusMsg(\`✗ Error: \${e?.message || 'Failed to cancel'}\`)
+      setStatusMsg(`✗ Error: ${e?.message || 'Failed to cancel'}`)
     } finally {
       setOperating(false)
       clearStatus()
@@ -78,11 +78,11 @@ export default function App() {
     try {
       const result = await stopSlamAndSave(mapName)
       console.log('Save result:', result)
-      setStatusMsg(\`✓ Map "\${mapName}" saved successfully!\`)
+      setStatusMsg(`✓ Map "${mapName}" saved successfully!`)
       await refresh()
     } catch (e: any) {
       console.error('Save failed:', e)
-      setStatusMsg(\`✗ Error: \${e?.message || 'Failed to save map'}\`)
+      setStatusMsg(`✗ Error: ${e?.message || 'Failed to save map'}`)
     } finally {
       setOperating(false)
       clearStatus()
@@ -107,23 +107,23 @@ export default function App() {
               <h1 className="text-xl font-bold">HFH Robot - SLAM Mapping</h1>
               <div className="flex items-center gap-3 text-sm mt-1">
                 <div className="flex items-center gap-1.5">
-                  <div className={\`w-2 h-2 rounded-full \${connected ? 'bg-green-400' : 'bg-red-400'}\`} />
+                  <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400' : 'bg-red-400'}`} />
                   <span className={connected ? 'text-green-400' : 'text-red-400'}>
                     {connected ? 'Connected' : 'Disconnected'}
                   </span>
                 </div>
                 <span className="text-slate-500">•</span>
-                <span className={\`font-semibold \${isSlam ? 'text-amber-400' : 'text-slate-400'}\`}>
+                <span className={`font-semibold ${isSlam ? 'text-amber-400' : 'text-slate-400'}`}>
                   {isSlam ? '● MAPPING' : 'IDLE'}
                 </span>
                 {battery?.percent !== undefined && (
                   <>
                     <span className="text-slate-500">•</span>
-                    <span className={\`\${
+                    <span className={`${
                       battery.percent < 20 ? 'text-red-400' :
                       battery.percent < 40 ? 'text-yellow-400' :
                       'text-green-400'
-                    }\`}>
+                    }`}>
                       🔋 {Math.round(battery.percent)}%
                     </span>
                   </>
@@ -147,11 +147,11 @@ export default function App() {
       {/* Status Message */}
       {statusMsg && (
         <div className="max-w-5xl mx-auto px-4 mt-3">
-          <div className={\`p-3 rounded-lg text-center font-semibold \${
+          <div className={`p-3 rounded-lg text-center font-semibold ${
             statusMsg.startsWith('✓') ? 'bg-green-900/50 text-green-300 border border-green-700' : 
             statusMsg.startsWith('✗') ? 'bg-red-900/50 text-red-300 border border-red-700' :
             'bg-blue-900/50 text-blue-300 border border-blue-700'
-          }\`}>
+          }`}>
             {statusMsg}
           </div>
         </div>
@@ -167,17 +167,17 @@ export default function App() {
               <div className="flex gap-2 px-4 py-2 border-b border-slate-700">
                 <button
                   onClick={() => setActiveTab('map')}
-                  className={\`px-4 py-2 rounded font-medium transition-colors \${
+                  className={`px-4 py-2 rounded font-medium transition-colors ${
                     activeTab === 'map' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-                  }\`}
+                  }`}
                 >
                   Map
                 </button>
                 <button
                   onClick={() => setActiveTab('camera')}
-                  className={\`px-4 py-2 rounded font-medium transition-colors \${
+                  className={`px-4 py-2 rounded font-medium transition-colors ${
                     activeTab === 'camera' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-                  }\`}
+                  }`}
                 >
                   Camera
                 </button>
