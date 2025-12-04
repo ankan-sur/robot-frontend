@@ -1,92 +1,87 @@
-# Git Setup Guide for Robot
+# Git Setup
 
-## Fix: Avoid entering password every time
+Git configuration for working with the robot repository.
 
-### Option 1: Use SSH Keys (Recommended)
+## SSH Key Setup (Recommended)
 
-1. **On your computer**, generate SSH key if you don't have one:
-   ```bash
-   ssh-keygen -t ed25519 -C "your_email@example.com"
-   ```
+Avoid entering passwords every time.
 
-2. **Copy your public key**:
-   ```bash
-   cat ~/.ssh/id_ed25519.pub
-   # Or on Windows:
-   type %USERPROFILE%\.ssh\id_ed25519.pub
-   ```
+### Generate SSH Key
 
-3. **Add SSH key to GitLab**:
-   - Go to GitLab: https://gitlab.msu.edu/-/profile/keys
-   - Click "Add new key"
-   - Paste your public key
-   - Save
-
-4. **On robot**, change remote URL to use SSH:
-   ```bash
-   cd ~/ece480_capstone_henry_ford_health
-   git remote set-url origin git@gitlab.msu.edu:girasege/ece480_capstone_henry_ford_health.git
-   ```
-
-5. **Copy SSH key to robot** (if needed):
-   ```bash
-   # On your computer, copy key to robot
-   ssh-copy-id pi@fordward.local
-   # Or manually copy ~/.ssh/id_ed25519 to robot's ~/.ssh/
-   ```
-
-### Option 2: Use Git Credential Helper (Quick Fix)
-
-**On robot**, cache credentials:
 ```bash
-git config --global credential.helper store
-# Then enter password once, it will be saved
+ssh-keygen -t ed25519 -C "your_email@example.com"
 ```
 
-**Or** cache for 1 hour:
+### Add to GitLab/GitHub
+
+Copy your public key:
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+
+Add to your Git hosting service:
+- GitLab: Settings → SSH Keys
+- GitHub: Settings → SSH and GPG Keys
+
+### Update Remote URL
+
+```bash
+git remote set-url origin git@github.com:username/repo.git
+```
+
+## Credential Caching
+
+Alternative to SSH keys.
+
+### Store Permanently
+
+```bash
+git config --global credential.helper store
+```
+
+### Cache for 1 Hour
+
 ```bash
 git config --global credential.helper 'cache --timeout=3600'
 ```
 
-## Fix: Handle Local Changes
+## Handling Local Changes
 
-When you have local changes that conflict with pull:
+### Stash Changes
 
-### Option 1: Stash (temporary save)
 ```bash
 git stash
 git pull
-git stash pop  # Restores your changes
+git stash pop
 ```
 
-### Option 2: Discard local changes (if you don't need them)
+### Discard Changes
+
 ```bash
-git checkout -- frontend/src/ros/config.ts
+git checkout -- path/to/file
 git pull
 ```
 
-### Option 3: Commit your changes first
+### Reset to Remote
+
 ```bash
-git add .
-git commit -m "Local changes"
-git pull
-# Resolve conflicts if any
+git fetch origin
+git reset --hard origin/main
 ```
 
-## Quick Commands
+## Useful Commands
 
 ```bash
-# Check what's changed locally
+# Check status
 git status
 
-# See what's different
-git diff frontend/src/ros/config.ts
+# View changes
+git diff
 
-# Discard ALL local changes (be careful!)
-git reset --hard HEAD
+# Pull latest
+git pull origin main
 
-# Force pull (discards local changes)
-git fetch origin
-git reset --hard origin/refactor/ros-docker-rosbridge
+# Push changes
+git push origin main
 ```
-

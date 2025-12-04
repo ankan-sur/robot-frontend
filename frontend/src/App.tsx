@@ -4,13 +4,13 @@ import { TeleopBlock } from './components/TeleopBlock'
 import { DebugLog } from './components/DebugLog'
 import VideoFeed from './components/VideoFeed'
 import { useRosConnection, useModeAndMaps, useBattery, useRobotPose } from './ros/hooks'
-import { setMode, stopSlamAndSave } from './ros/services'
+import { setMode, stopSlamAndSave, listMaps } from './ros/services'
 import { isCloudModeEnabled } from './ros/ros'
 import { useCloudStatus } from './ros/cloudHooks'
 
 export default function App() {
   const { connected } = useRosConnection()
-  const { mode, maps, loading, refresh } = useModeAndMaps()
+  const { mode, maps: hookMaps, loading, refresh } = useModeAndMaps()
   const battery = useBattery()
   const robotPose = useRobotPose()
   const cloudStatus = useCloudStatus()
@@ -21,8 +21,31 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'map' | 'camera'>('map')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveMapName, setSaveMapName] = useState<string>('')
+  const [localMaps, setLocalMaps] = useState<string[]>([])
+  const [mapsLoading, setMapsLoading] = useState(false)
+  
+  // Combine hook maps with local maps
+  const maps = hookMaps.length > 0 ? hookMaps : localMaps
   
   const clearStatus = () => setTimeout(() => setStatusMsg(null), 5000)
+  
+  // Manual refresh maps list
+  const refreshMaps = async () => {
+    setMapsLoading(true)
+    try {
+      const result = await listMaps()
+      if (Array.isArray(result)) {
+        setLocalMaps(result)
+        setStatusMsg(`✓ Found ${result.length} maps`)
+      }
+    } catch (e: any) {
+      console.error('Failed to list maps:', e)
+      setStatusMsg(`✗ Could not list maps: ${e?.message || 'service unavailable'}`)
+    } finally {
+      setMapsLoading(false)
+      clearStatus()
+    }
+  }
   
   // Get robot position for telemetry display
   const pose = robotPose?.pose?.pose || robotPose?.pose
@@ -255,6 +278,32 @@ export default function App() {
                   </div>
                 </div>
               )}
+
+              {/* Force Idle - Recovery button */}
+              <div className="mt-4 pt-4 border-t border-slate-700">
+                <button
+                  onClick={async () => {
+                    setOperating(true)
+                    setStatusMsg('Forcing IDLE mode...')
+                    try {
+                      await setMode('idle')
+                      setStatusMsg('✓ Forced to IDLE')
+                    } catch (e: any) {
+                      setStatusMsg(`✗ Force failed: ${e?.message}`)
+                    } finally {
+                      setOperating(false)
+                      clearStatus()
+                    }
+                  }}
+                  disabled={operating || !connected}
+                  className="w-full px-3 py-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-slate-300 rounded-lg text-sm font-medium transition-colors"
+                >
+                  ⚡ Force IDLE (Recovery)
+                </button>
+                <p className="text-xs text-slate-500 mt-1 text-center">
+                  Use if stuck after failed operation
+                </p>
+              </div>
             </div>
 
             {/* Saved Maps List */}

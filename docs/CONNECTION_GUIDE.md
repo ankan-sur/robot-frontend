@@ -1,51 +1,109 @@
-# Robot Connection Guide
+# Connection Guide
 
-This guide explains how to connect the web UI to the robot using rosbridge, and how to verify topics and video.
+How to connect the web UI to the robot.
 
-Overview
-- Frontend runs on your computer (or the robot) and connects directly to ROS 2 via rosbridge_websocket.
-- Video uses web_video_server (HTTP stream).
-- Rosboard is available for diagnostics.
+## Network Setup
 
-Robot connection info
+**Robot WiFi Hotspot:**
+
 - SSID: `Fordward`
 - Password: `fordward`
-- Robot IP (hotspot): `192.168.149.1`
-- SSH: `ssh pi@192.168.149.1` (password: `fordward`)
+- Robot IP: `192.168.149.1`
 
-1) Ensure robot bringup is running
-- Required nodes on robot:
-  - rosbridge_websocket (WS 9090)
-  - web_video_server (HTTP 8080)
-  - rosboard (HTTP 8888)
-  - system_topics (publishes `/map`, `/pois`, `/robot/state`, `/available_maps`, `/connected_clients`, `/client_count`, `/navigate_to_pose/status`)
-- Verify:
-  - `ros2 topic list`
-  - Visit `http://<robot-host>:8888` for rosboard
+**SSH Access:**
 
-2) Run the frontend (your computer)
-- Install: `cd frontend && npm install`
-- Dev server: `npm run dev -- --host`
-- Open: `http://fordward.local:5173` (or `http://<robot-ip>:5173`)
-- The UI auto-targets the host for rosbridge and video; override via `frontend/.env` if needed.
+```bash
+ssh pi@192.168.149.1
+# Password: fordward
+```
 
-3) UI features to verify
-- Connection badge: shows rosbridge connection status and latency.
-- Camera feed: shows `/ascamera/camera_publisher/rgb0/image` via WVS (natural-size image).
-- Map view: renders `/map` occupancy grid and overlays POIs and robot pose.
-- Controls: POI dropdown from `/pois` (pixel coordinates). “Go” sends a Nav2 goal; “Stop” publishes a zero `cmd_vel`.
-- Telemetry: Battery, IMU, button, robot state.
+## Starting the UI
 
-4) Nav2 status and cancel
-- Subscribe to `/navigate_to_pose/status` for goal lifecycle.
-- Cancel via `/navigate_to_pose/cancel` (supply latest goal_id; if none, cancel all).
+### Development (on your computer)
 
-Troubleshooting
-- rosbridge not reachable: open port 9090; `sudo ufw allow 9090`.
-- Video blank: open `http://<host>:8080/stream_viewer?topic=/ascamera/camera_publisher/rgb0/image` to test.
-- Map missing: ensure `/map` is published (transient local); verify with `ros2 topic echo /map`.
-- POIs missing: ensure `/pois` is published by system_topics (or your source); see rosboard.
+```bash
+cd frontend
+npm install
+npm run dev -- --host
+```
 
-Notes
-- Namespacing: current topics are at root; if namespaced later, update `frontend/src/ros/config.ts`.
-- Pixel-to-world conversion happens when sending Nav2 goals (based on `map.info`).
+Open `http://localhost:5173` or `http://fordward.local:5173`
+
+### Production (on robot)
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for Nginx setup.
+
+## Verifying Connection
+
+### 1. Check rosbridge
+
+```bash
+nc -zv fordward.local 9090
+# Should show: Connection succeeded
+```
+
+### 2. Check video server
+
+```bash
+curl -I http://fordward.local:8080
+# Should return HTTP 200
+```
+
+### 3. Check ROS topics
+
+```bash
+ssh pi@fordward.local
+ros2 topic list
+```
+
+Expected topics:
+
+- `/map`
+- `/odom`
+- `/ros_robot_controller/battery`
+- `/rosout`
+
+### 4. Test camera stream
+
+Open in browser:
+
+```
+http://fordward.local:8080/stream?topic=/ascamera/camera_publisher/rgb0/image&type=mjpeg
+```
+
+## Troubleshooting
+
+### "Disconnected" in UI
+
+1. Verify robot is powered on
+2. Check you're on the robot's WiFi network
+3. Confirm rosbridge is running: `ros2 node list | grep rosbridge`
+4. Check firewall: `sudo ufw allow 9090`
+
+### Map not displaying
+
+1. Check mode is SLAM or Nav (not Idle)
+2. Verify `/map` topic: `ros2 topic echo /map --once`
+3. In SLAM mode, drive around to build map
+
+### Camera not loading
+
+1. Check web_video_server: `ros2 node list | grep web_video`
+2. Verify camera topic: `ros2 topic hz /ascamera/camera_publisher/rgb0/image`
+3. Test stream URL directly in browser
+
+### Teleop not working
+
+1. Check `/ui/cmd_vel` or `/cmd_vel` topic exists
+2. Verify teleop_gateway is running
+3. Check keyboard focus is on the teleop area
+
+## Ports Reference
+
+| Port | Service |
+|------|---------|
+| 9090 | rosbridge_websocket |
+| 8080 | web_video_server |
+| 8888 | rosboard (optional) |
+| 5173 | Vite dev server |
+| 22 | SSH |

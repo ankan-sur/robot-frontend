@@ -2,9 +2,19 @@ const defaultHost = typeof window !== 'undefined' && window.location?.hostname
   ? window.location.hostname
   : 'localhost';
 
-const defaultRosbridge = `ws://${defaultHost}:9090`;
+// Connection mode: 'direct' (rosbridge) or 'cloud' (via cloud backend)
+export const CONNECTION_MODE = import.meta.env.VITE_CONNECTION_MODE || 'direct';
+
+// For cloud mode, don't auto-connect to rosbridge
+const defaultRosbridge = CONNECTION_MODE === 'cloud' 
+  ? '' // Empty - don't connect directly
+  : `ws://${defaultHost}:9090`;
+  
 const defaultVideoBase = `http://${defaultHost}:8080`;
-// Rosboard and RWT URLs can be added via env if needed
+
+// Cloud backend URL (for cloud mode)
+export const CLOUD_BACKEND_URL = import.meta.env.VITE_CLOUD_BACKEND_URL || 'wss://hfhbackend.onrender.com/ui';
+export const ROBOT_ID = import.meta.env.VITE_ROBOT_ID || 'fordward';
 
 export const ROS_CONFIG = {
   rosbridgeUrl: import.meta.env.VITE_ROSBRIDGE_URL || import.meta.env.VITE_ROSBRIDGE_FALLBACK_URL || defaultRosbridge,

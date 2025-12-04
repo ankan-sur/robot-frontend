@@ -1,33 +1,115 @@
-# Robot Bringup Quick Checklist
+# Robot Setup Checklist
 
-This is a quick reference to get the robot stack up for the UI.
+Quick reference for getting the robot stack ready for the UI.
 
-Connect
-- Power on the robot.
-- Connect to Wi‑Fi hotspot `Fordward` (password `fordward`).
-- SSH: `ssh pi@192.168.149.1` (password `fordward`).
+## Power On
 
-Ensure required nodes
-- rosbridge_websocket (port 9090, `0.0.0.0`).
-- web_video_server (port 8080).
-- rosboard (port 8888).
-- system_topics (publishes `/map`, `/pois`, `/robot/state`, `/available_maps`, `/connected_clients`, `/client_count`, `/navigate_to_pose/status`; provides `/navigate_to_pose/cancel`).
+1. Power on the robot
+2. Wait for boot (~30 seconds)
+3. Connect to WiFi `Fordward` (password: `fordward`)
 
-Verify
-- `ros2 topic list` includes the topics above.
-- Rosboard: open `http://fordward.local:8888`.
-- Camera: `http://fordward.local:8080/stream_viewer?topic=/ascamera/camera_publisher/rgb0/image`.
-- Rosbridge open (port only): `nc -zv fordward.local 9090`.
+## Verify ROS Stack
 
-Serve UI (options)
-- Development from a laptop: `cd frontend && npm install && npm run dev -- --host`, then open `http://fordward.local:5173`.
-- Nginx on the robot (production): see `docs/HOSTNAME_AND_SERVE.md` to serve `frontend/dist` at `http://fordward.local`.
+SSH into robot:
 
-Ports
-- 9090: rosbridge
-- 8080: web_video_server
-- 8888: rosboard
-- 80: Nginx (if serving UI)
+```bash
+ssh pi@192.168.149.1
+```
 
-Firewall (UFW)
-- `sudo ufw allow 9090 8080 8888`
+Check nodes are running:
+
+```bash
+ros2 node list
+```
+
+Expected nodes:
+
+- `/rosbridge_websocket`
+- `/web_video_server`
+- `/mode_manager`
+- `/teleop_gateway`
+- `/ros_robot_controller`
+
+## Check Required Topics
+
+```bash
+ros2 topic list | grep -E "map|odom|battery|cmd_vel"
+```
+
+Expected:
+
+- `/map` - Occupancy grid
+- `/odom` - Odometry
+- `/ros_robot_controller/battery` - Battery voltage
+- `/ui/cmd_vel` - Teleop commands
+
+## Check Services
+
+```bash
+ros2 service list | grep -E "mode|map"
+```
+
+Expected:
+
+- `/get_mode`
+- `/set_mode`
+- `/load_map`
+- `/list_maps`
+- `/stop_slam_and_save`
+
+## Test Endpoints
+
+From another machine on the network:
+
+```bash
+# Rosbridge
+nc -zv fordward.local 9090
+
+# Video server
+curl -I http://fordward.local:8080
+
+# Camera stream
+curl -I "http://fordward.local:8080/stream?topic=/ascamera/camera_publisher/rgb0/image"
+```
+
+## Firewall (if enabled)
+
+```bash
+sudo ufw allow 9090  # rosbridge
+sudo ufw allow 8080  # video server
+sudo ufw allow 8888  # rosboard (optional)
+```
+
+## Start UI
+
+On your development machine:
+
+```bash
+cd frontend
+npm install
+npm run dev -- --host
+```
+
+Open `http://fordward.local:5173`
+
+## Common Issues
+
+### Nodes not starting
+
+Check launch logs:
+
+```bash
+ros2 launch bringup core_bringup.launch.py
+```
+
+### Battery topic missing
+
+```bash
+ros2 topic info /ros_robot_controller/battery
+```
+
+### Camera not streaming
+
+```bash
+ros2 topic hz /ascamera/camera_publisher/rgb0/image
+```
