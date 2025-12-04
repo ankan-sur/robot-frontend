@@ -4,13 +4,13 @@ import { TeleopBlock } from './components/TeleopBlock'
 import { DebugLog } from './components/DebugLog'
 import VideoFeed from './components/VideoFeed'
 import { useRosConnection, useModeAndMaps, useBattery, useRobotPose } from './ros/hooks'
-import { setMode, stopSlamAndSave, loadMap } from './ros/services'
+import { setMode, stopSlamAndSave } from './ros/services'
 import { isCloudModeEnabled } from './ros/ros'
 import { useCloudStatus } from './ros/cloudHooks'
 
 export default function App() {
   const { connected } = useRosConnection()
-  const { mode, activeMap, maps, loading, refresh } = useModeAndMaps()
+  const { mode, maps, loading, refresh } = useModeAndMaps()
   const battery = useBattery()
   const robotPose = useRobotPose()
   const cloudStatus = useCloudStatus()
@@ -21,7 +21,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'map' | 'camera'>('map')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveMapName, setSaveMapName] = useState<string>('')
-  const [selectedViewMap, setSelectedViewMap] = useState<string>('')
   
   const clearStatus = () => setTimeout(() => setStatusMsg(null), 5000)
   
@@ -88,50 +87,20 @@ export default function App() {
     try {
       const result = await stopSlamAndSave(mapName)
       console.log('Save result:', result)
-      setStatusMsg(`✓ Map "${mapName}" saved! Loading for preview...`)
+      setStatusMsg(`✓ Map "${mapName}" saved successfully!`)
       await refresh()
-      // After saving, automatically load the map for viewing
-      setTimeout(async () => {
-        try {
-          await loadMap(mapName)
-          setStatusMsg(`✓ Map "${mapName}" saved and loaded!`)
-          await refresh()
-        } catch (loadErr) {
-          console.error('Auto-load after save failed:', loadErr)
-          // Still show success for the save
-          setStatusMsg(`✓ Map "${mapName}" saved successfully!`)
-        }
-        clearStatus()
-      }, 1000)
     } catch (e: any) {
       console.error('Save failed:', e)
       setStatusMsg(`✗ Error: ${e?.message || 'Failed to save map'}`)
-      clearStatus()
     } finally {
       setOperating(false)
+      clearStatus()
     }
   }
 
   const cancelSaveDialog = () => {
     setShowSaveDialog(false)
     setSaveMapName('')
-  }
-
-  const handleLoadMapForView = async (mapName: string) => {
-    if (!mapName) return
-    setSelectedViewMap(mapName)
-    setOperating(true)
-    setStatusMsg(`Loading map "${mapName}"...`)
-    try {
-      await loadMap(mapName)
-      setStatusMsg(`✓ Loaded map "${mapName}" for viewing`)
-      refresh()
-    } catch (e: any) {
-      setStatusMsg(`✗ Error: ${e?.message || 'Failed to load map'}`)
-    } finally {
-      setOperating(false)
-      clearStatus()
-    }
   }
 
   const isSlam = mode === 'slam'
@@ -200,8 +169,43 @@ export default function App() {
       <main className="max-w-7xl mx-auto p-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           
-          {/* Left Column: Teleop + Controls + Maps List */}
-          <div className="space-y-4 order-2 lg:order-1">
+          {/* Left Column: Map/Camera + Debug Log */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Map/Camera Tabs */}
+            <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+              <div className="flex gap-2 px-4 py-2 border-b border-slate-700">
+                <button
+                  onClick={() => setActiveTab('map')}
+                  className={`px-4 py-2 rounded font-medium transition-colors ${
+                    activeTab === 'map' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
+                  }`}
+                >
+                  Map
+                </button>
+                <button
+                  onClick={() => setActiveTab('camera')}
+                  className={`px-4 py-2 rounded font-medium transition-colors ${
+                    activeTab === 'camera' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
+                  }`}
+                >
+                  Camera
+                </button>
+              </div>
+              <div className="p-4">
+                {activeTab === 'map' ? (
+                  <MapView embedded mode={mode} />
+                ) : (
+                  <VideoFeed embedded />
+                )}
+              </div>
+            </div>
+
+            {/* Debug Log - Always visible */}
+            <DebugLog />
+          </div>
+
+          {/* Right Column: Teleop + Controls + Maps List + Telemetry */}
+          <div className="space-y-4">
             {/* Teleop Control */}
             <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
               <TeleopBlock disableKeyboard={showSaveDialog} />
@@ -214,7 +218,7 @@ export default function App() {
               {isIdle && (
                 <div className="space-y-4">
                   <p className="text-slate-400 text-center">
-                    Start SLAM to create a new map of the environment.
+                    Start SLAM to create a new map.
                   </p>
                   <button
                     onClick={handleStartMapping}
@@ -228,23 +232,23 @@ export default function App() {
 
               {isSlam && (
                 <div className="space-y-4">
-                  <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-4 text-center">
-                    <div className="text-amber-400 font-semibold text-lg mb-1">● MAPPING IN PROGRESS</div>
-                    <div className="text-slate-300">Drive the robot around to map the area</div>
+                  <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-3 text-center">
+                    <div className="text-amber-400 font-semibold mb-1">● MAPPING</div>
+                    <div className="text-slate-300 text-sm">Drive around to map</div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={handleCancelMapping}
                       disabled={operating}
-                      className="px-4 py-3 bg-red-700 hover:bg-red-600 disabled:bg-slate-700 text-white rounded-lg font-semibold transition-colors"
+                      className="px-3 py-2 bg-red-700 hover:bg-red-600 disabled:bg-slate-700 text-white rounded-lg font-semibold transition-colors"
                     >
                       ✗ Cancel
                     </button>
                     <button
                       onClick={handleStopAndSave}
                       disabled={operating}
-                      className="px-4 py-3 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 text-white rounded-lg font-semibold transition-colors"
+                      className="px-3 py-2 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 text-white rounded-lg font-semibold transition-colors"
                     >
                       ✓ Save Map
                     </button>
@@ -256,7 +260,7 @@ export default function App() {
             {/* Saved Maps List */}
             <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold text-slate-200">Saved Maps ({maps.length})</h2>
+                <h2 className="text-base font-semibold text-slate-200">Saved Maps ({maps.length})</h2>
                 <button
                   onClick={refresh}
                   disabled={loading}
@@ -266,26 +270,15 @@ export default function App() {
                 </button>
               </div>
               {maps.length === 0 ? (
-                <div className="text-slate-500 text-center py-4">No maps saved yet</div>
+                <div className="text-slate-500 text-center py-3 text-sm">No maps saved yet</div>
               ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
+                <div className="space-y-2 max-h-32 overflow-y-auto">
                   {maps.map((mapName) => (
                     <div
                       key={mapName}
-                      className={`flex items-center justify-between p-2 rounded ${
-                        activeMap === mapName ? 'bg-blue-900/50 border border-blue-600' : 'bg-slate-700/50'
-                      }`}
+                      className="flex items-center justify-between p-2 rounded bg-slate-700/50"
                     >
                       <span className="font-mono text-sm">{mapName}</span>
-                      {!isSlam && (
-                        <button
-                          onClick={() => handleLoadMapForView(mapName)}
-                          disabled={operating || activeMap === mapName}
-                          className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:text-slate-400 rounded transition-colors"
-                        >
-                          {activeMap === mapName ? 'Loaded' : 'View'}
-                        </button>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -294,8 +287,8 @@ export default function App() {
 
             {/* Telemetry Panel */}
             <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
-              <div className="text-sm font-semibold mb-3 text-slate-300">Telemetry</div>
-              <div className="space-y-2 text-sm font-mono">
+              <div className="text-sm font-semibold mb-2 text-slate-300">Telemetry</div>
+              <div className="space-y-1 text-xs font-mono">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Mode:</span>
                   <span className={isSlam ? 'text-amber-400' : 'text-slate-300'}>
@@ -316,84 +309,26 @@ export default function App() {
                         {cloudStatus.backendConnected ? 'Connected' : 'Offline'}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">UI Clients:</span>
-                      <span className="text-white">{cloudStatus.uiClientCount}</span>
-                    </div>
                   </>
                 )}
-                <div className="border-t border-slate-700 pt-2 mt-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Position:</span>
+                  <span className="text-white">({posX.toFixed(2)}, {posY.toFixed(2)})</span>
+                </div>
+                {battery?.percent !== undefined && battery.percent !== null && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Position:</span>
-                    <span className="text-white">
-                      ({posX.toFixed(2)}, {posY.toFixed(2)})
+                    <span className="text-slate-400">Battery:</span>
+                    <span className={`${
+                      (battery.percent ?? 0) < 20 ? 'text-red-400' :
+                      (battery.percent ?? 0) < 40 ? 'text-yellow-400' :
+                      'text-green-400'
+                    }`}>
+                      {Math.round(battery.percent ?? 0)}% {battery.volts ? `(${battery.volts.toFixed(1)}V)` : ''}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Heading:</span>
-                    <span className="text-white">{(yaw * 180 / Math.PI).toFixed(1)}°</span>
-                  </div>
-                  {battery?.percent !== undefined && battery.percent !== null && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Battery:</span>
-                      <span className={`${
-                        (battery.percent ?? 0) < 20 ? 'text-red-400' :
-                        (battery.percent ?? 0) < 40 ? 'text-yellow-400' :
-                        'text-green-400'
-                      }`}>
-                        {Math.round(battery.percent ?? 0)}% {battery.volts ? `(${battery.volts.toFixed(1)}V)` : ''}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {activeMap && (
-                  <div className="flex justify-between border-t border-slate-700 pt-2">
-                    <span className="text-slate-400">Active Map:</span>
-                    <span className="text-blue-400">{activeMap}</span>
-                  </div>
                 )}
               </div>
             </div>
-          </div>
-
-          {/* Right Column: Map/Camera + Debug Log */}
-          <div className="lg:col-span-2 space-y-4 order-1 lg:order-2">
-            {/* Map/Camera Tabs */}
-            <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-              <div className="flex gap-2 px-4 py-2 border-b border-slate-700">
-                <button
-                  onClick={() => setActiveTab('map')}
-                  className={`px-4 py-2 rounded font-medium transition-colors ${
-                    activeTab === 'map' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-                  }`}
-                >
-                  Map
-                </button>
-                <button
-                  onClick={() => setActiveTab('camera')}
-                  className={`px-4 py-2 rounded font-medium transition-colors ${
-                    activeTab === 'camera' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-                  }`}
-                >
-                  Camera
-                </button>
-                {activeMap && (
-                  <span className="ml-auto text-sm text-slate-400 self-center">
-                    Viewing: <span className="text-blue-400 font-mono">{activeMap}</span>
-                  </span>
-                )}
-              </div>
-              <div className="p-4">
-                {activeTab === 'map' ? (
-                  <MapView embedded mode={mode} />
-                ) : (
-                  <VideoFeed embedded />
-                )}
-              </div>
-            </div>
-
-            {/* Debug Log - Always visible */}
-            <DebugLog />
           </div>
         </div>
       </main>
