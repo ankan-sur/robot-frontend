@@ -2,11 +2,15 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
+import { DemoApp, isDemoMode } from './demo/DemoEntry'
 import { isCloudModeEnabled, setConnectionState } from './ros/ros'
 import { getCloudClient } from './ros/cloudClient'
 
-// Initialize cloud mode connection if enabled
-if (isCloudModeEnabled()) {
+// Check if we should render demo mode
+const demoMode = isDemoMode()
+
+// Initialize cloud mode connection if enabled (skip in demo mode)
+if (!demoMode && isCloudModeEnabled()) {
   console.log('[Main] Cloud mode enabled, initializing cloud client...')
   const client = getCloudClient()
   
@@ -46,9 +50,16 @@ if (isCloudModeEnabled()) {
   })
 }
 
+// Log which mode we're in
+if (demoMode) {
+  console.log('[Main] 🎬 Demo mode enabled - rendering Demo UI')
+} else {
+  console.log('[Main] Standard mode - rendering full App')
+}
+
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    {demoMode ? <DemoApp /> : <App />}
   </React.StrictMode>
 )
 
