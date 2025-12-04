@@ -1,36 +1,34 @@
 /**
  * Demo UI Configuration
  * 
- * Configuration for the Demo Day UI. All values here are placeholders
- * that will be replaced with real data before Demo Day.
+ * Configuration for the Demo Day UI.
  */
-
-// TODO(Anka): Replace with real map + POI coordinates from RViz before Demo Day.
 
 export const DEMO_CONFIG = {
   // Robot configuration
-  robotName: 'MentorPi',
-  robotId: 'mentorpi',
+  robotName: 'HFH Robot',
+  robotId: 'hfhrobot',
   
-  // Map configuration
-  // TODO(Anka): Replace with actual map name from slam/maps/
-  mapName: 'hallway_demo',
+  // Map configuration - demohall1
+  mapName: 'demohall1',
   
   // Map display settings (pixels)
   mapWidth: 800,
   mapHeight: 400,
   
   // Map origin in ROS coordinates (from map.yaml)
-  // TODO(Anka): Get these from your hallway map's .yaml file
+  // TODO: Get these from demohall1.yaml file
   mapOrigin: { x: -10.0, y: -5.0 },
   mapResolution: 0.05, // meters per pixel
   
-  // Backend URL (if using HTTP backend instead of rosbridge)
-  // TODO(Anka): Set this if you decide to use a demo backend
-  backendUrl: import.meta.env.VITE_DEMO_BACKEND_URL || 'ws://localhost:9090',
+  // Rosbridge URL - LAN only
+  rosbridgeUrl: import.meta.env.VITE_ROSBRIDGE_URL || 'ws://192.168.149.1:9090',
   
-  // Use mock/dummy implementation (set false when connecting to real robot)
-  useMockClient: import.meta.env.VITE_DEMO_USE_MOCK !== 'false',
+  // Backend URL (unused in demo - LAN only)
+  backendUrl: 'ws://localhost:9090',
+  
+  // Use mock/dummy implementation (set false for real robot)
+  useMockClient: import.meta.env.VITE_DEMO_USE_MOCK === 'true',
   
   // Simulated navigation timing (for mock client)
   mockNavigationDurationMs: 8000,

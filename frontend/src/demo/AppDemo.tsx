@@ -1,22 +1,28 @@
 /**
  * Demo Day UI - AppDemo.tsx
  * 
- * Minimal, polished single-robot control panel for Demo Day video filming.
+ * LAN-only POI navigation interface for Demo Day.
  * Features:
- * - Clean header with robot name and connection status
- * - Map area with POI markers
- * - Big touch-friendly POI navigation buttons
- * - Live status display and activity log
- * - Green color theme
+ * - Map AND Camera visible together (split view)
+ * - POI navigation buttons
+ * - Teleop controller
+ * - Debug logs
+ * - Telemetry and battery status
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getDemoClient, DEMO_CONFIG, DEMO_POIS, DemoNavState, DemoRobotStatus, DemoControlClient, POI } from './index';
+import { DEMO_CONFIG } from './config';
+import { DEMO_POIS, POI } from './pois';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// Import the real components and hooks
+import { MapView } from '../components/MapView';
+import VideoFeed from '../components/VideoFeed';
+import { TeleopBlock } from '../components/TeleopBlock';
+import { DebugLog } from '../components/DebugLog';
+import { useRosConnection, useRobotPose, useBattery } from '../ros/hooks';
+import { ros } from '../ros/ros';
+
 // Types
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface LogEntry {
   id: number;
   timestamp: Date;
@@ -24,654 +30,370 @@ interface LogEntry {
   type: 'info' | 'success' | 'error' | 'nav';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Color Theme (Green)
-// ─────────────────────────────────────────────────────────────────────────────
+type NavState = 'idle' | 'navigating' | 'succeeded' | 'failed';
 
-const THEME = {
-  primary: '#10B981',       // Emerald 500
-  primaryDark: '#059669',   // Emerald 600
-  primaryLight: '#34D399',  // Emerald 400
-  background: '#0F172A',    // Slate 900
-  surface: '#1E293B',       // Slate 800
-  surfaceLight: '#334155',  // Slate 700
-  text: '#F8FAFC',          // Slate 50
-  textMuted: '#94A3B8',     // Slate 400
-  success: '#22C55E',       // Green 500
-  warning: '#F59E0B',       // Amber 500
-  error: '#EF4444',         // Red 500
-  border: '#475569',        // Slate 600
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Status Badge Component
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface StatusBadgeProps {
-  label: string;
-  value: string;
-  status: 'ok' | 'warning' | 'error' | 'neutral';
-}
-
-const StatusBadge: React.FC<StatusBadgeProps> = ({ label, value, status }) => {
-  const statusColors = {
-    ok: THEME.success,
-    warning: THEME.warning,
-    error: THEME.error,
-    neutral: THEME.textMuted,
+// Helpers
+function quaternionFromYaw(yaw: number): { x: number; y: number; z: number; w: number } {
+  const halfYaw = yaw / 2;
+  return {
+    x: 0,
+    y: 0,
+    z: Math.sin(halfYaw),
+    w: Math.cos(halfYaw),
   };
-
-  return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      padding: '12px 16px',
-      backgroundColor: THEME.surface,
-      borderRadius: '8px',
-      minWidth: '100px',
-    }}>
-      <span style={{ color: THEME.textMuted, fontSize: '12px', marginBottom: '4px' }}>
-        {label}
-      </span>
-      <span style={{ 
-        color: statusColors[status], 
-        fontSize: '16px', 
-        fontWeight: 600,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-      }}>
-        <span style={{
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          backgroundColor: statusColors[status],
-        }} />
-        {value}
-      </span>
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POI Button Component
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface POIButtonProps {
-  poi: POI;
-  isActive: boolean;
-  isDisabled: boolean;
-  onClick: () => void;
 }
 
-const POIButton: React.FC<POIButtonProps> = ({ poi, isActive, isDisabled, onClick }) => {
-  const baseStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '20px 24px',
-    minWidth: '140px',
-    minHeight: '80px',
-    border: 'none',
-    borderRadius: '12px',
-    cursor: isDisabled ? 'not-allowed' : 'pointer',
-    transition: 'all 0.2s ease',
-    fontFamily: 'inherit',
-  };
+// Main Demo App Component
+export default function AppDemo() {
+  const { connected } = useRosConnection();
+  const robotPose = useRobotPose();
+  const battery = useBattery();
+  
+  // Extract position from pose
+  const posX = robotPose?.pose?.pose?.position?.x ?? robotPose?.pose?.position?.x ?? 0;
+  const posY = robotPose?.pose?.pose?.position?.y ?? robotPose?.pose?.position?.y ?? 0;
+  // Extract yaw from quaternion
+  const q = robotPose?.pose?.pose?.orientation ?? robotPose?.pose?.orientation;
+  const theta = q ? Math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z)) : 0;
 
-  const getStyle = (): React.CSSProperties => {
-    if (isActive) {
-      return {
-        ...baseStyle,
-        backgroundColor: THEME.primary,
-        color: THEME.text,
-        boxShadow: `0 0 20px ${THEME.primary}40`,
-      };
-    }
-    if (isDisabled) {
-      return {
-        ...baseStyle,
-        backgroundColor: THEME.surfaceLight,
-        color: THEME.textMuted,
-        opacity: 0.6,
-      };
-    }
-    return {
-      ...baseStyle,
-      backgroundColor: THEME.surface,
-      color: THEME.text,
-      border: `2px solid ${THEME.primary}`,
-    };
-  };
-
-  return (
-    <button 
-      style={getStyle()} 
-      onClick={onClick}
-      disabled={isDisabled}
-    >
-      <span style={{ fontSize: '24px', marginBottom: '4px' }}>{poi.icon}</span>
-      <span style={{ fontSize: '16px', fontWeight: 600 }}>{poi.label}</span>
-    </button>
-  );
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Map Display Component
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface MapDisplayProps {
-  pois: POI[];
-  currentDestination: POI | null;
-  navState: DemoNavState;
-}
-
-const MapDisplay: React.FC<MapDisplayProps> = ({ pois, currentDestination, navState }) => {
-  // Simple placeholder map with POI markers
-  return (
-    <div style={{
-      position: 'relative',
-      width: '100%',
-      height: '300px',
-      backgroundColor: THEME.surfaceLight,
-      borderRadius: '12px',
-      border: `2px solid ${THEME.border}`,
-      overflow: 'hidden',
-    }}>
-      {/* Map placeholder */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: THEME.textMuted,
-        fontSize: '14px',
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '8px' }}>🗺️</div>
-          <div>{DEMO_CONFIG.mapName}</div>
-        </div>
-      </div>
-
-      {/* POI markers */}
-      {pois.map((poi, index) => {
-        const isDestination = currentDestination?.id === poi.id;
-        const isNavigating = isDestination && navState === 'navigating';
-        
-        // Arrange POIs in a row for visualization
-        const xPos = 20 + (index * 30);
-        const yPos = 50;
-        
-        return (
-          <div
-            key={poi.id}
-            style={{
-              position: 'absolute',
-              left: `${xPos}%`,
-              top: `${yPos}%`,
-              transform: 'translate(-50%, -50%)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              transition: 'all 0.3s ease',
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              backgroundColor: isDestination ? THEME.primary : THEME.surface,
-              border: `3px solid ${isDestination ? THEME.primaryLight : THEME.border}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              boxShadow: isNavigating ? `0 0 15px ${THEME.primary}` : 'none',
-              animation: isNavigating ? 'pulse 1.5s infinite' : 'none',
-            }}>
-              {poi.icon}
-            </div>
-            <span style={{
-              marginTop: '4px',
-              fontSize: '11px',
-              color: isDestination ? THEME.primaryLight : THEME.textMuted,
-              fontWeight: isDestination ? 600 : 400,
-            }}>
-              {poi.label}
-            </span>
-          </div>
-        );
-      })}
-
-      {/* Robot indicator */}
-      <div style={{
-        position: 'absolute',
-        left: '10%',
-        top: '70%',
-        transform: 'translate(-50%, -50%)',
-      }}>
-        <div style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: '50%',
-          backgroundColor: THEME.primary,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '18px',
-          boxShadow: `0 0 10px ${THEME.primary}`,
-        }}>
-          🤖
-        </div>
-        <span style={{
-          display: 'block',
-          textAlign: 'center',
-          marginTop: '2px',
-          fontSize: '10px',
-          color: THEME.primaryLight,
-        }}>
-          {DEMO_CONFIG.robotName}
-        </span>
-      </div>
-
-      {/* CSS animation */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.6; }
-        }
-      `}</style>
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Activity Log Component
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface ActivityLogProps {
-  logs: LogEntry[];
-}
-
-const ActivityLog: React.FC<ActivityLogProps> = ({ logs }) => {
-  const logRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
-  }, [logs]);
-
-  const getLogColor = (type: LogEntry['type']) => {
-    switch (type) {
-      case 'success': return THEME.success;
-      case 'error': return THEME.error;
-      case 'nav': return THEME.primary;
-      default: return THEME.textMuted;
-    }
-  };
-
-  return (
-    <div style={{
-      backgroundColor: THEME.surface,
-      borderRadius: '8px',
-      padding: '12px',
-      height: '150px',
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      <div style={{ 
-        color: THEME.textMuted, 
-        fontSize: '12px', 
-        marginBottom: '8px',
-        fontWeight: 600,
-      }}>
-        Activity Log
-      </div>
-      <div 
-        ref={logRef}
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          fontFamily: 'monospace',
-          fontSize: '12px',
-        }}
-      >
-        {logs.map((log) => (
-          <div key={log.id} style={{ 
-            marginBottom: '4px',
-            color: getLogColor(log.type),
-          }}>
-            <span style={{ color: THEME.textMuted }}>
-              [{log.timestamp.toLocaleTimeString()}]
-            </span>{' '}
-            {log.message}
-          </div>
-        ))}
-        {logs.length === 0 && (
-          <div style={{ color: THEME.textMuted, fontStyle: 'italic' }}>
-            No activity yet...
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Cancel Button Component
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface CancelButtonProps {
-  onClick: () => void;
-  disabled: boolean;
-}
-
-const CancelButton: React.FC<CancelButtonProps> = ({ onClick, disabled }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    style={{
-      padding: '12px 32px',
-      backgroundColor: disabled ? THEME.surfaceLight : THEME.error,
-      color: THEME.text,
-      border: 'none',
-      borderRadius: '8px',
-      fontSize: '14px',
-      fontWeight: 600,
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      opacity: disabled ? 0.5 : 1,
-      transition: 'all 0.2s ease',
-      fontFamily: 'inherit',
-    }}
-  >
-    ⏹ Cancel Navigation
-  </button>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Main AppDemo Component
-// ─────────────────────────────────────────────────────────────────────────────
-
-const AppDemo: React.FC = () => {
-  const [client, setClient] = useState<DemoControlClient | null>(null);
-  const [status, setStatus] = useState<DemoRobotStatus | null>(null);
+  // Navigation state
+  const [navState, setNavState] = useState<NavState>('idle');
+  const [currentPOI, setCurrentPOI] = useState<POI | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [statusMsg, setStatusMsg] = useState('');
+  
+  // Action client ref
+  const actionClientRef = useRef<any>(null);
+  const goalHandleRef = useRef<any>(null);
   const logIdRef = useRef(0);
 
-  // ── Logging helper ────────────────────────────────────────────────────────
+  // Add log entry
   const addLog = useCallback((message: string, type: LogEntry['type'] = 'info') => {
-    logIdRef.current += 1;
-    setLogs(prev => [...prev.slice(-50), { // Keep last 50 entries
-      id: logIdRef.current,
+    const entry: LogEntry = {
+      id: logIdRef.current++,
       timestamp: new Date(),
       message,
       type,
-    }]);
+    };
+    setLogs(prev => [entry, ...prev].slice(0, 50));
   }, []);
 
-  // ── Initialize client ─────────────────────────────────────────────────────
-  useEffect(() => {
-    const demoClient = getDemoClient();
-    setClient(demoClient);
+  // Clear status after delay
+  const clearStatus = useCallback(() => {
+    setTimeout(() => setStatusMsg(''), 4000);
+  }, []);
 
-    // Subscribe to status updates
-    const unsubscribe = demoClient.onStatusUpdate((newStatus) => {
-      setStatus(newStatus);
+  // Initialize action client when connected
+  useEffect(() => {
+    if (!ros || !connected) return;
+
+    const ROSLIB = (window as any).ROSLIB;
+    if (!ROSLIB) {
+      console.warn('ROSLIB not available');
+      return;
+    }
+
+    actionClientRef.current = new ROSLIB.ActionClient({
+      ros,
+      serverName: '/navigate_to_pose',
+      actionName: 'nav2_msgs/action/NavigateToPose',
     });
 
-    // Connect
-    addLog('Connecting to robot...', 'info');
-    demoClient.connect()
-      .then(() => {
-        addLog('Connected to robot', 'success');
-      })
-      .catch((err) => {
-        addLog(`Connection failed: ${err.message}`, 'error');
-      });
+    addLog('Connected to Nav2 action server', 'success');
 
     return () => {
-      unsubscribe();
-      demoClient.disconnect();
+      if (goalHandleRef.current) {
+        goalHandleRef.current.cancel();
+      }
     };
-  }, [addLog]);
+  }, [ros, connected, addLog]);
 
-  // ── Handle navigation ─────────────────────────────────────────────────────
-  const handleNavigateToPOI = useCallback(async (poi: POI) => {
-    if (!client) return;
+  // Navigate to POI
+  const handleNavigateTo = useCallback(async (poi: POI) => {
+    if (!actionClientRef.current || !connected) {
+      setStatusMsg('Not connected');
+      clearStatus();
+      return;
+    }
 
-    addLog(`Sending robot to ${poi.label}...`, 'nav');
+    if (goalHandleRef.current) {
+      goalHandleRef.current.cancel();
+    }
+
+    setCurrentPOI(poi);
+    setNavState('navigating');
+    setStatusMsg('Navigating to ' + poi.label + '...');
+    addLog('Starting navigation to ' + poi.label + ' (' + poi.x.toFixed(2) + ', ' + poi.y.toFixed(2) + ')', 'nav');
+
+    const ROSLIB = (window as any).ROSLIB;
     
-    try {
-      await client.navigateTo(poi);
-      addLog(`Arrived at ${poi.label}!`, 'success');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      addLog(`Navigation failed: ${message}`, 'error');
+    const goal = new ROSLIB.Goal({
+      actionClient: actionClientRef.current,
+      goalMessage: {
+        pose: {
+          header: {
+            frame_id: 'map',
+            stamp: { sec: 0, nanosec: 0 },
+          },
+          pose: {
+            position: { x: poi.x, y: poi.y, z: 0 },
+            orientation: quaternionFromYaw(poi.theta),
+          },
+        },
+      },
+    });
+
+    goalHandleRef.current = goal;
+
+    goal.on('feedback', (feedback: any) => {
+      const remaining = feedback.distance_remaining?.toFixed(2) || '?';
+      addLog('Distance remaining: ' + remaining + 'm', 'info');
+    });
+
+    goal.on('result', (result: any) => {
+      if (result) {
+        setNavState('succeeded');
+        setStatusMsg('Arrived at ' + poi.label + '!');
+        addLog('Successfully arrived at ' + poi.label, 'success');
+      } else {
+        setNavState('failed');
+        setStatusMsg('Navigation failed');
+        addLog('Navigation to ' + poi.label + ' failed', 'error');
+      }
+      setCurrentPOI(null);
+      goalHandleRef.current = null;
+      clearStatus();
+    });
+
+    goal.on('status', (status: any) => {
+      if (status.status === 4) {
+        setNavState('succeeded');
+      } else if (status.status >= 3 && status.status !== 4) {
+        setNavState('failed');
+      }
+    });
+
+    goal.send();
+  }, [connected, addLog, clearStatus]);
+
+  // Cancel navigation
+  const handleCancel = useCallback(() => {
+    if (goalHandleRef.current) {
+      goalHandleRef.current.cancel();
+      goalHandleRef.current = null;
     }
-  }, [client, addLog]);
+    setNavState('idle');
+    setCurrentPOI(null);
+    setStatusMsg('Navigation cancelled');
+    addLog('Navigation cancelled by user', 'info');
+    clearStatus();
+  }, [addLog, clearStatus]);
 
-  // ── Handle cancel ─────────────────────────────────────────────────────────
-  const handleCancel = useCallback(async () => {
-    if (!client) return;
+  const isNavigating = navState === 'navigating';
 
-    addLog('Cancelling navigation...', 'info');
-    
-    try {
-      await client.cancelNavigation();
-      addLog('Navigation cancelled', 'info');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      addLog(`Cancel failed: ${message}`, 'error');
-    }
-  }, [client, addLog]);
-
-  // ── Derive UI state ───────────────────────────────────────────────────────
-  const isConnected = status?.connected ?? false;
-  const navState = status?.navState ?? 'idle';
-  const currentDestination = status?.currentDestination ?? null;
-  const isNavigating = navState === 'navigating' || navState === 'sending';
-  const batteryLevel = status?.batteryPercent ?? 100;
-
-  const getNavStateLabel = () => {
-    switch (navState) {
-      case 'idle': return 'Idle';
-      case 'sending': return 'Sending Goal...';
-      case 'navigating': return 'Navigating';
-      case 'arrived': return 'Arrived';
-      case 'cancelled': return 'Cancelled';
-      case 'failed': return 'Failed';
-      default: return 'Unknown';
-    }
-  };
-
-  const getNavStateStatus = (): StatusBadgeProps['status'] => {
-    switch (navState) {
-      case 'arrived': return 'ok';
-      case 'failed': return 'error';
-      case 'cancelled': return 'warning';
-      default: return 'neutral';
-    }
-  };
-
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: THEME.background,
-      color: THEME.text,
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    }}>
+    <div className="min-h-screen bg-slate-900 text-white">
       {/* Header */}
-      <header style={{
-        backgroundColor: THEME.surface,
-        borderBottom: `1px solid ${THEME.border}`,
-        padding: '16px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '28px' }}>🤖</span>
-          <div>
-            <h1 style={{ 
-              margin: 0, 
-              fontSize: '20px', 
-              fontWeight: 700,
-              color: THEME.primary,
-            }}>
-              {DEMO_CONFIG.robotName}
-            </h1>
-            <div style={{ 
-              fontSize: '12px', 
-              color: THEME.textMuted,
-              marginTop: '2px',
-            }}>
-              Demo Control Panel
+      <div className="bg-emerald-900 border-b border-emerald-700 px-4 py-3">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-emerald-100">
+                {DEMO_CONFIG.robotName} - Demo Day
+              </h1>
+              <div className="flex items-center gap-3 text-sm mt-1">
+                <div className="flex items-center gap-1.5">
+                  <div className={'w-2 h-2 rounded-full ' + (connected ? 'bg-green-400' : 'bg-red-400')} />
+                  <span className={connected ? 'text-green-400' : 'text-red-400'}>
+                    {connected ? 'Connected' : 'Disconnected'}
+                  </span>
+                </div>
+                <span className="text-emerald-600">|</span>
+                <span className="text-emerald-300">Map: {DEMO_CONFIG.mapName}</span>
+                {battery?.percent !== undefined && battery.percent !== null && (
+                  <>
+                    <span className="text-emerald-600">|</span>
+                    <span className={(battery.percent ?? 0) < 20 ? 'text-red-400' : (battery.percent ?? 0) < 40 ? 'text-yellow-400' : 'text-green-400'}>
+                      Battery: {Math.round(battery.percent ?? 0)}%
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className={'text-lg font-bold ' + (isNavigating ? 'text-amber-400' : 'text-emerald-400')}>
+                {isNavigating ? 'Going to ' + currentPOI?.label : 'Ready'}
+              </div>
+              <div className="text-xs text-emerald-400/70">
+                ({posX.toFixed(2)}, {posY.toFixed(2)})
+              </div>
             </div>
           </div>
         </div>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '8px 16px',
-          backgroundColor: isConnected ? `${THEME.success}20` : `${THEME.error}20`,
-          borderRadius: '20px',
-        }}>
-          <span style={{
-            width: '10px',
-            height: '10px',
-            borderRadius: '50%',
-            backgroundColor: isConnected ? THEME.success : THEME.error,
-          }} />
-          <span style={{ 
-            color: isConnected ? THEME.success : THEME.error,
-            fontSize: '14px',
-            fontWeight: 500,
-          }}>
-            {isConnected ? 'Connected' : 'Disconnected'}
-          </span>
-        </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <main style={{
-        maxWidth: '900px',
-        margin: '0 auto',
-        padding: '24px',
-      }}>
-        {/* Status Row */}
-        <div style={{
-          display: 'flex',
-          gap: '12px',
-          marginBottom: '24px',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-        }}>
-          <StatusBadge 
-            label="Connection" 
-            value={isConnected ? 'Online' : 'Offline'}
-            status={isConnected ? 'ok' : 'error'}
-          />
-          <StatusBadge 
-            label="Battery" 
-            value={`${batteryLevel}%`}
-            status={batteryLevel > 20 ? 'ok' : batteryLevel > 10 ? 'warning' : 'error'}
-          />
-          <StatusBadge 
-            label="Nav State" 
-            value={getNavStateLabel()}
-            status={getNavStateStatus()}
-          />
-          <StatusBadge 
-            label="Destination" 
-            value={currentDestination?.label ?? 'None'}
-            status={currentDestination ? 'ok' : 'neutral'}
-          />
-        </div>
-
-        {/* Map Display */}
-        <div style={{ marginBottom: '24px' }}>
-          <MapDisplay 
-            pois={DEMO_POIS}
-            currentDestination={currentDestination}
-            navState={navState}
-          />
-        </div>
-
-        {/* POI Navigation Buttons */}
-        <div style={{
-          backgroundColor: THEME.surface,
-          borderRadius: '12px',
-          padding: '20px',
-          marginBottom: '24px',
-        }}>
-          <div style={{ 
-            color: THEME.textMuted, 
-            fontSize: '12px', 
-            marginBottom: '16px',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}>
-            Navigate To
-          </div>
-          <div style={{
-            display: 'flex',
-            gap: '16px',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-          }}>
-            {DEMO_POIS.map((poi) => (
-              <POIButton
-                key={poi.id}
-                poi={poi}
-                isActive={currentDestination?.id === poi.id}
-                isDisabled={!isConnected || isNavigating}
-                onClick={() => handleNavigateToPOI(poi)}
-              />
-            ))}
-          </div>
-
-          {/* Cancel Button */}
-          <div style={{ 
-            marginTop: '20px', 
-            display: 'flex', 
-            justifyContent: 'center',
-          }}>
-            <CancelButton 
-              onClick={handleCancel}
-              disabled={!isConnected || !isNavigating}
-            />
+      {/* Status Message */}
+      {statusMsg && (
+        <div className="max-w-7xl mx-auto px-4 mt-3">
+          <div className="p-3 rounded-lg text-center font-semibold bg-emerald-900/50 text-emerald-300 border border-emerald-700">
+            {statusMsg}
           </div>
         </div>
+      )}
 
-        {/* Activity Log */}
-        <ActivityLog logs={logs} />
+      <main className="max-w-7xl mx-auto p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          
+          {/* Left Column: Map + Camera (both visible) */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Map and Camera side by side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Map */}
+              <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+                <div className="px-4 py-2 border-b border-slate-700 bg-slate-800/50">
+                  <span className="text-sm font-medium text-slate-300">Map View</span>
+                </div>
+                <div className="p-2">
+                  <MapView embedded mode="localization" />
+                </div>
+              </div>
+              
+              {/* Camera */}
+              <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+                <div className="px-4 py-2 border-b border-slate-700 bg-slate-800/50">
+                  <span className="text-sm font-medium text-slate-300">Camera</span>
+                </div>
+                <div className="p-2">
+                  <VideoFeed embedded />
+                </div>
+              </div>
+            </div>
 
-        {/* Footer info */}
-        <div style={{
-          marginTop: '24px',
-          textAlign: 'center',
-          color: THEME.textMuted,
-          fontSize: '12px',
-        }}>
-          {DEMO_CONFIG.useMockClient ? (
-            <span>🧪 Running in mock mode</span>
-          ) : (
-            <span>📡 Connected to ROS2</span>
-          )}
-          {' • '}
-          Map: {DEMO_CONFIG.mapName}
+            {/* POI Navigation Buttons */}
+            <div className="bg-slate-800 rounded-lg border border-emerald-700 p-4">
+              <div className="text-sm font-semibold text-emerald-400 mb-3">
+                Navigate to Point of Interest
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {DEMO_POIS.map((poi) => (
+                  <button
+                    key={poi.id}
+                    onClick={() => handleNavigateTo(poi)}
+                    disabled={!connected || isNavigating}
+                    className={
+                      'flex flex-col items-center justify-center p-4 rounded-lg font-semibold transition-all ' +
+                      (currentPOI?.id === poi.id 
+                        ? 'bg-emerald-600 text-white ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-800' 
+                        : 'bg-slate-700 hover:bg-emerald-700 text-slate-200 border border-slate-600 hover:border-emerald-500') +
+                      ((!connected || isNavigating) && currentPOI?.id !== poi.id ? ' opacity-50 cursor-not-allowed' : '')
+                    }
+                  >
+                    <span className="text-2xl mb-1">{poi.icon}</span>
+                    <span className="text-sm">{poi.label}</span>
+                  </button>
+                ))}
+              </div>
+              
+              {/* Cancel Button */}
+              {isNavigating && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    onClick={handleCancel}
+                    className="px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-semibold transition-colors"
+                  >
+                    Cancel Navigation
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Debug Log */}
+            <DebugLog />
+          </div>
+
+          {/* Right Column: Teleop + Telemetry */}
+          <div className="space-y-4">
+            {/* Teleop Control */}
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+              <div className="text-sm font-semibold text-slate-300 mb-3">Manual Control</div>
+              <TeleopBlock />
+            </div>
+
+            {/* Telemetry Panel */}
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+              <div className="text-sm font-semibold mb-3 text-slate-300">Telemetry</div>
+              <div className="space-y-2 text-sm font-mono">
+                <div className="flex justify-between p-2 bg-slate-700/50 rounded">
+                  <span className="text-slate-400">Status:</span>
+                  <span className={isNavigating ? 'text-amber-400' : 'text-emerald-400'}>
+                    {isNavigating ? 'NAVIGATING' : 'READY'}
+                  </span>
+                </div>
+                <div className="flex justify-between p-2 bg-slate-700/50 rounded">
+                  <span className="text-slate-400">Connection:</span>
+                  <span className={connected ? 'text-green-400' : 'text-red-400'}>
+                    {connected ? 'Connected' : 'Offline'}
+                  </span>
+                </div>
+                <div className="flex justify-between p-2 bg-slate-700/50 rounded">
+                  <span className="text-slate-400">Position:</span>
+                  <span className="text-white">
+                    ({posX.toFixed(2)}, {posY.toFixed(2)})
+                  </span>
+                </div>
+                <div className="flex justify-between p-2 bg-slate-700/50 rounded">
+                  <span className="text-slate-400">Heading:</span>
+                  <span className="text-white">
+                    {(theta * 180 / Math.PI).toFixed(1)} deg
+                  </span>
+                </div>
+                {battery?.percent !== undefined && battery.percent !== null && (
+                  <div className="flex justify-between p-2 bg-slate-700/50 rounded">
+                    <span className="text-slate-400">Battery:</span>
+                    <span className={(battery.percent ?? 0) < 20 ? 'text-red-400' : (battery.percent ?? 0) < 40 ? 'text-yellow-400' : 'text-green-400'}>
+                      {Math.round(battery.percent ?? 0)}% {battery.volts ? '(' + battery.volts.toFixed(1) + 'V)' : ''}
+                    </span>
+                  </div>
+                )}
+                {currentPOI && (
+                  <div className="flex justify-between p-2 bg-emerald-900/30 rounded border border-emerald-700">
+                    <span className="text-emerald-400">Target:</span>
+                    <span className="text-emerald-300">
+                      {currentPOI.icon} {currentPOI.label}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Activity Log (compact) */}
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+              <div className="text-sm font-semibold mb-2 text-slate-300">Activity</div>
+              <div className="space-y-1 max-h-40 overflow-y-auto text-xs font-mono">
+                {logs.slice(0, 10).map((log) => (
+                  <div
+                    key={log.id}
+                    className={'p-1.5 rounded ' + (
+                      log.type === 'success' ? 'bg-green-900/30 text-green-400' :
+                      log.type === 'error' ? 'bg-red-900/30 text-red-400' :
+                      log.type === 'nav' ? 'bg-emerald-900/30 text-emerald-400' :
+                      'bg-slate-700/30 text-slate-400'
+                    )}
+                  >
+                    <span className="opacity-60">
+                      {log.timestamp.toLocaleTimeString()}
+                    </span>
+                    {' '}{log.message}
+                  </div>
+                ))}
+                {logs.length === 0 && (
+                  <div className="text-slate-500 text-center py-2">No activity yet</div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>
   );
-};
-
-export default AppDemo;
+}
