@@ -11,7 +11,9 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getDemoClient, DEMO_CONFIG, DEMO_POIS, DemoNavState, DemoRobotStatus, DemoControlClient, POI } from './index';
+import { DEMO_POIS, POI } from './pois';
+import { useRosConnection, useBattery, useRobotPose, useNavStatus, useNavigateToPose } from '../ros/hooks';
+import { cancelNavigation } from '../ros/services';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -42,6 +44,10 @@ const THEME = {
   error: '#EF4444',         // Red 500
   border: '#475569',        // Slate 600
 };
+
+// Demo constants (replaceable by env vars if needed)
+const MAP_NAME = 'Demo Map';
+const ROBOT_NAME = 'HFH Robot';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Status Badge Component
@@ -165,7 +171,7 @@ const POIButton: React.FC<POIButtonProps> = ({ poi, isActive, isDisabled, onClic
 interface MapDisplayProps {
   pois: POI[];
   currentDestination: POI | null;
-  navState: DemoNavState;
+  navState: string;
 }
 
 const MapDisplay: React.FC<MapDisplayProps> = ({ pois, currentDestination, navState }) => {
@@ -192,7 +198,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ pois, currentDestination, navSt
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '48px', marginBottom: '8px' }}>🗺️</div>
-          <div>{DEMO_CONFIG.mapName}</div>
+          <div>{MAP_NAME}</div>
         </div>
       </div>
 
@@ -266,14 +272,14 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ pois, currentDestination, navSt
         }}>
           🤖
         </div>
-        <span style={{
+          <span style={{
           display: 'block',
           textAlign: 'center',
           marginTop: '2px',
           fontSize: '10px',
           color: THEME.primaryLight,
         }}>
-          {DEMO_CONFIG.robotName}
+          {ROBOT_NAME}
         </span>
       </div>
 
@@ -398,15 +404,21 @@ const CancelButton: React.FC<CancelButtonProps> = ({ onClick, disabled }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AppDemo: React.FC = () => {
-  const [client, setClient] = useState<DemoControlClient | null>(null);
-  const [status, setStatus] = useState<DemoRobotStatus | null>(null);
+  // Use the shared ROS hooks/services so demo behaves like the main UI
+  const { connected: isConnected } = useRosConnection();
+  const battery = useBattery();
+  const robotPose = useRobotPose();
+  const navStatus = useNavStatus();
+  const { navigate } = useNavigateToPose();
+
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [currentDestination, setCurrentDestination] = useState<POI | null>(null);
   const logIdRef = useRef(0);
 
-  // ── Logging helper ────────────────────────────────────────────────────────
+  // Logging helper
   const addLog = useCallback((message: string, type: LogEntry['type'] = 'info') => {
     logIdRef.current += 1;
-    setLogs(prev => [...prev.slice(-50), { // Keep last 50 entries
+    setLogs(prev => [...prev.slice(-50), {
       id: logIdRef.current,
       timestamp: new Date(),
       message,
@@ -414,73 +426,49 @@ const AppDemo: React.FC = () => {
     }]);
   }, []);
 
-  // ── Initialize client ─────────────────────────────────────────────────────
-  useEffect(() => {
-    const demoClient = getDemoClient();
-    setClient(demoClient);
+  // Handle navigation via Nav2 action client helper
+  const handleNavigateToPOI = useCallback(async (poi: POI) => {
+    addLog(`Sending robot to ${poi.label}...`, 'nav');
+    setCurrentDestination(poi);
+    try {
+      await navigate(poi.x, poi.y, poi.theta);
+      addLog(`Arrived at ${poi.label}!`, 'success');
+      setCurrentDestination(null);
+    } catch (err: any) {
+      addLog(`Navigation failed: ${err?.message || String(err)}`, 'error');
+      setCurrentDestination(null);
+    }
+  }, [navigate, addLog]);
 
-    // Subscribe to status updates
-    const unsubscribe = demoClient.onStatusUpdate((newStatus) => {
-      setStatus(newStatus);
-    });
-
-    // Connect
-    addLog('Connecting to robot...', 'info');
-    demoClient.connect()
-      .then(() => {
-        addLog('Connected to robot', 'success');
-      })
-      .catch((err) => {
-        addLog(`Connection failed: ${err.message}`, 'error');
-      });
-
-    return () => {
-      unsubscribe();
-      demoClient.disconnect();
-    };
+  // Cancel navigation using service helper
+  const handleCancel = useCallback(async () => {
+    addLog('Cancelling navigation...', 'info');
+    try {
+      await cancelNavigation();
+      addLog('Navigation cancelled', 'info');
+      setCurrentDestination(null);
+    } catch (err: any) {
+      addLog(`Cancel failed: ${err?.message || String(err)}`, 'error');
+    }
   }, [addLog]);
 
-  // ── Handle navigation ─────────────────────────────────────────────────────
-  const handleNavigateToPOI = useCallback(async (poi: POI) => {
-    if (!client) return;
+  // Derive UI state
+  const navState = (() => {
+    const code = navStatus?.status;
+    if (code === undefined || code === null) return 'idle';
+    if (code === 4) return 'arrived';
+    if (code === 1 || code === 2) return 'navigating';
+    if (code === 3 || code === 5) return 'cancelled';
+    if (code === 6) return 'failed';
+    return 'idle';
+  })();
 
-    addLog(`Sending robot to ${poi.label}...`, 'nav');
-    
-    try {
-      await client.navigateTo(poi);
-      addLog(`Arrived at ${poi.label}!`, 'success');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      addLog(`Navigation failed: ${message}`, 'error');
-    }
-  }, [client, addLog]);
-
-  // ── Handle cancel ─────────────────────────────────────────────────────────
-  const handleCancel = useCallback(async () => {
-    if (!client) return;
-
-    addLog('Cancelling navigation...', 'info');
-    
-    try {
-      await client.cancelNavigation();
-      addLog('Navigation cancelled', 'info');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      addLog(`Cancel failed: ${message}`, 'error');
-    }
-  }, [client, addLog]);
-
-  // ── Derive UI state ───────────────────────────────────────────────────────
-  const isConnected = status?.connected ?? false;
-  const navState = status?.navState ?? 'idle';
-  const currentDestination = status?.currentDestination ?? null;
-  const isNavigating = navState === 'navigating' || navState === 'sending';
-  const batteryLevel = status?.batteryPercent ?? 100;
+  const isNavigating = navState === 'navigating';
+  const batteryLevel = battery?.percent ?? 100;
 
   const getNavStateLabel = () => {
     switch (navState) {
       case 'idle': return 'Idle';
-      case 'sending': return 'Sending Goal...';
       case 'navigating': return 'Navigating';
       case 'arrived': return 'Arrived';
       case 'cancelled': return 'Cancelled';
@@ -524,7 +512,7 @@ const AppDemo: React.FC = () => {
               fontWeight: 700,
               color: THEME.primary,
             }}>
-              {DEMO_CONFIG.robotName}
+              {ROBOT_NAME}
             </h1>
             <div style={{ 
               fontSize: '12px', 
@@ -661,13 +649,13 @@ const AppDemo: React.FC = () => {
           color: THEME.textMuted,
           fontSize: '12px',
         }}>
-          {DEMO_CONFIG.useMockClient ? (
-            <span>🧪 Running in mock mode</span>
-          ) : (
+          {isConnected ? (
             <span>📡 Connected to ROS2</span>
+          ) : (
+            <span>🧪 Offline</span>
           )}
           {' • '}
-          Map: {DEMO_CONFIG.mapName}
+          Map: {MAP_NAME}
         </div>
       </main>
     </div>
